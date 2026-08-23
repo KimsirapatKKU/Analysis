@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เอแม็ท • ตัวช่วยหาเบี้ยที่ดีที่สุด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=Sarabun:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --wood-dark:#231710;
+    --wood:#3a2818;
+    --felt:#2f4a3c;
+    --felt-2:#263d31;
+    --ivory:#f4ead6;
+    --ivory-2:#e9dcc0;
+    --ink:#2a1e14;
+    --gold:#d4a94a;
+    --red:#b1473f;
+    --yellow:#d9a441;
+    --blue:#3f7ea6;
+    --orange:#c97a3b;
+    --muted:#c9b99a;
+    --panel:#f4ead6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at top, #3a2818 0%, var(--wood-dark) 60%);
+    color:var(--ivory);
+    font-family:'Sarabun',sans-serif;
+    padding:20px 14px 60px;
+  }
+  h1,h2,h3{font-family:'Chonburi',serif; font-weight:400; margin:0; letter-spacing:.5px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  header{text-align:center; margin-bottom:22px;}
+  header h1{font-size:clamp(28px,5vw,42px); color:var(--gold); text-shadow:0 2px 0 rgba(0,0,0,.4);}
+  header p{color:var(--muted); font-size:14px; margin-top:6px; max-width:640px; margin-left:auto; margin-right:auto; line-height:1.6;}
+  .layout{display:grid; grid-template-columns: minmax(0,1.15fr) minmax(300px,.85fr); gap:22px;}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr;} }
+
+  .card{
+    background:linear-gradient(180deg, rgba(244,234,214,.06), rgba(244,234,214,.02));
+    border:1px solid rgba(212,169,74,.25);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:18px;
+  }
+  .card h2{font-size:18px; color:var(--gold); margin-bottom:10px;}
+  .card h2 small{font-family:'Sarabun'; font-size:12px; color:var(--muted); font-weight:400; margin-left:8px;}
+
+  /* ---------- board ---------- */
+  .board-frame{
+    background:linear-gradient(160deg,var(--wood),#20140c);
+    border-radius:16px; padding:14px;
+    border:1px solid rgba(212,169,74,.35);
+    box-shadow: inset 0 0 40px rgba(0,0,0,.5);
+  }
+  .board{
+    display:grid;
+    grid-template-columns:repeat(15,1fr);
+    gap:2px;
+    background:var(--felt-2);
+    padding:6px;
+    border-radius:8px;
+    aspect-ratio:1/1;
+  }
+  .cell{
+    position:relative;
+    aspect-ratio:1/1;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:3px;
+    font-family:'Space Mono',monospace;
+    font-weight:700;
+    font-size:clamp(8px,1.5vw,13px);
+    cursor:pointer;
+    user-select:none;
+    background:var(--felt);
+    color:rgba(244,234,214,.35);
+    transition:filter .1s;
+  }
+  .cell:hover{filter:brightness(1.25);}
+  .cell.bonus-dl{background:var(--orange); color:#3a220a;}
+  .cell.bonus-tl{background:var(--blue); color:#062230;}
+  .cell.bonus-dw{background:var(--yellow); color:#3a2a06;}
+  .cell.bonus-tw{background:var(--red); color:#3a0a06;}
+  .cell.bonus-star{background:var(--blue); color:#062230;}
+  .cell.bonus-star::after{content:"★"; font-size:1.3em;}
+  .cell .lbl{position:absolute; bottom:1px; right:2px; font-size:.55em; opacity:.75; font-family:'Sarabun';}
+  .cell.tile{
+    background:var(--ivory);
+    color:var(--ink);
+    box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  .cell.tile .lbl{color:#7a6a4e;}
+  .cell.selected{outline:2px solid #fff; outline-offset:-2px; z-index:2;}
+  .cell.preview-new{
+    background:#fff6df;
+    color:#7a3b12;
+    box-shadow:0 0 0 2px var(--gold), 0 0 10px rgba(212,169,74,.8);
+    animation:pop .25s ease;
+    z-index:3;
+  }
+  @keyframes pop{from{transform:scale(.7);} to{transform:scale(1);}}
+
+  .legend{display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; font-size:12px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:5px;}
+  .swatch{width:13px; height:13px; border-radius:3px; display:inline-block;}
+
+  /* ---------- cell editor ---------- */
+  .cell-editor{font-size:14px;}
+  .cell-editor .row{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .btnrow button, select, .btn{
+    font-family:'Sarabun'; font-size:13px; padding:6px 10px; border-radius:8px;
+    border:1px solid rgba(212,169,74,.4); background:rgba(0,0,0,.2); color:var(--ivory); cursor:pointer;
+  }
+  .btnrow button.active{background:var(--gold); color:var(--ink); font-weight:700;}
+  .btn.primary{background:var(--gold); color:var(--ink); font-weight:700; border:none;}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn.danger{background:var(--red); color:#fff; border:none;}
+  .btn:disabled{opacity:.35; cursor:not-allowed;}
+
+  /* ---------- rack ---------- */
+  .rack-tiles{display:flex; flex-wrap:wrap; gap:8px; min-height:56px; padding:8px; background:rgba(0,0,0,.25); border-radius:10px;}
+  .rack-tile{
+    width:46px; height:46px; background:var(--ivory); color:var(--ink); border-radius:6px;
+    display:flex; align-items:center; justify-content:center; font-family:'Space Mono'; font-weight:700; font-size:16px;
+    position:relative; box-shadow:0 3px 0 rgba(0,0,0,.35);
+  }
+  .rack-tile .rm{position:absolute; top:-6px; right:-6px; background:var(--red); color:#fff; border-radius:50%; width:18px; height:18px; font-size:11px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid rgba(0,0,0,.3);}
+  .rack-tile .pt{position:absolute; bottom:1px; right:3px; font-size:8px; font-family:'Sarabun'; color:#7a6a4e;}
+
+  .tile-picker{display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:6px; margin-top:10px; max-height:230px; overflow-y:auto; padding-right:4px;}
+  .tp-btn{
+    aspect-ratio:1/1; background:var(--ivory); color:var(--ink); border-radius:6px; border:none; cursor:pointer;
+    font-family:'Space Mono'; font-weight:700; font-size:13px; position:relative; display:flex; align-items:center; justify-content:center;
+  }
+  .tp-btn:disabled{opacity:.25; cursor:not-allowed;}
+  .tp-btn .cnt{position:absolute; bottom:1px; right:2px; font-size:8px; font-family:'Sarabun'; color:#7a6a4e;}
+
+  .hint{font-size:12.5px; color:var(--muted); line-height:1.6; margin-top:8px;}
+
+  /* ---------- results ---------- */
+  .result{
+    display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:10px;
+    background:rgba(0,0,0,.22); margin-bottom:8px; cursor:pointer; border:1px solid transparent;
+  }
+  .result:hover{border-color:var(--gold);}
+  .result.active{border-color:var(--gold); background:rgba(212,169,74,.15);}
+  .result .rank{font-family:'Chonburi'; color:var(--gold); font-size:15px; width:26px; text-align:center;}
+  .result .score{font-family:'Space Mono'; font-weight:700; font-size:20px; color:#fff; width:52px; text-align:center;}
+  .result .eq{font-family:'Space Mono'; font-size:15px; flex:1;}
+  .result .meta{font-size:11px; color:var(--muted);}
+  .result .bingo{background:var(--gold); color:var(--ink); font-size:10px; padding:2px 6px; border-radius:6px; font-weight:700;}
+
+  .status{font-size:13px; color:var(--muted); margin-top:8px;}
+  .loading{display:flex; align-items:center; gap:10px; color:var(--gold); font-size:14px; padding:14px;}
+  .spinner{width:18px; height:18px; border:3px solid rgba(212,169,74,.25); border-top-color:var(--gold); border-radius:50%; animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .tabs{display:flex; gap:6px; margin-bottom:12px;}
+  .tabs button{flex:1;}
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:26px; line-height:1.7;}
+  a{color:var(--gold);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>เอแม็ท (A-MATH) — ตัวช่วยหาเบี้ยที่ดีที่สุด</h1>
+    <p>ใส่สถานะกระดานปัจจุบัน + เบี้ยในมือของคุณ แล้วให้ระบบคำนวณหาตำแหน่งวางที่ได้คะแนนสูงสุดเท่าที่เป็นไปได้ — แบบเดียวกับ Word Finder ของ Scrabble แต่ปรับมาใช้กับสมการคณิตศาสตร์</p>
+  </header>
+
+  <div class="layout">
+    <!-- LEFT: BOARD -->
+    <div>
+      <div class="card">
+        <h2>กระดาน <small id="boardModeLabel">คลิกช่องเพื่อแก้ไข</small></h2>
+        <div class="board-frame">
+          <div class="board" id="board"></div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--orange)"></i> x2 เฉพาะเบี้ย</span>
+          <span><i class="swatch" style="background:var(--blue)"></i> x3 เฉพาะเบี้ย</span>
+          <span><i class="swatch" style="background:var(--yellow)"></i> x2 ทั้งสมการ</span>
+          <span><i class="swatch" style="background:var(--red)"></i> x3 ทั้งสมการ</span>
+          <span><i class="swatch" style="background:var(--ivory)"></i> เบี้ยที่วางแล้ว</span>
+        </div>
+      </div>
+
+      <div class="card" id="resultsCard">
+        <h2>ผลลัพธ์ Best Play</h2>
+        <div id="resultsBox"><p class="hint">กด "หา Best Play" ทางด้านขวาเพื่อเริ่มค้นหา</p></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: CONTROLS -->
+    <div>
+      <div class="card" id="cellEditorCard" style="display:none;">
+        <h2>วางเบี้ยที่ช่อง <small id="cellCoordLabel"></small></h2>
+        <div class="cell-editor" id="cellEditor"></div>
+      </div>
+
+      <div class="card">
+        <h2>เบี้ยในมือ <small id="rackCountLabel">0/8</small></h2>
+        <div class="rack-tiles" id="rackTiles"></div>
+        <div class="row" style="margin-top:10px; display:flex; gap:8px;">
+          <button class="btn" onclick="clearRack()">ล้างเบี้ยในมือ</button>
+          <button class="btn" onclick="loadDemo()">โหลดตัวอย่าง</button>
+          <button class="btn danger" onclick="resetBoard()">รีเซ็ตกระดาน</button>
+        </div>
+        <h3 style="font-family:'Sarabun'; font-size:14px; color:var(--gold); margin-top:14px;">เพิ่มเบี้ย (คลิกเพื่อเพิ่ม)</h3>
+        <div class="tile-picker" id="tilePicker"></div>
+        <p class="hint">ตัวเลข 0–9 นำมาวางติดกันประกอบเป็นเลขหลายหลักได้ (เช่น 1+2 → "12") หรือจะใช้เบี้ยเลข 10–20 ที่มีอยู่แล้วก็ได้ ตัวเลขในวงเล็บใต้เบี้ยคือแต้ม ตัวเลขมุมขวาบนปุ่มคือจำนวนที่เหลือในถุง</p>
+      </div>
+
+      <div class="card">
+        <h2>คำนวณ</h2>
+        <label class="hint" style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="deepSearch"> ค้นหาละเอียดขึ้น (ช้าลง เหมาะกับเบี้ยเยอะ/กระดานซับซ้อน)
+        </label>
+        <button class="btn primary" style="width:100%; margin-top:10px; padding:12px; font-size:15px;" onclick="runSolve()">🔍 หา Best Play ที่ดีที่สุด</button>
+        <div class="status" id="solveStatus"></div>
+      </div>
+
+      <div class="card">
+        <h2>หมายเหตุ</h2>
+        <p class="hint">
+          • ผังช่องพิเศษเป็นแบบมาตรฐานที่นิยมใช้ทั่วไป คลิกช่องว่างแล้วเลือก "ประเภทช่อง" เพื่อแก้ให้ตรงกับกระดานจริงของคุณได้<br>
+          • เมื่อเบี้ยใหม่สร้างสมการไขว้ (แนวตั้ง/แนวนอน) ระบบจะตรวจว่าสมการไขว้นั้นถูกต้องด้วย ถ้าไม่ถูกต้องจะไม่นับตำแหน่งนั้นเป็นตัวเลือก<br>
+          • คะแนนโบนัส "บิงโก" (+40) จะนับเมื่อวางเบี้ยใหม่ครบ 8 ตัวในตาเดียว<br>
+          • หากเบี้ยในมือมีจำนวนมากและมีตัวเลือกซับซ้อนมาก ระบบอาจค้นหาไม่ครบ 100% เพื่อไม่ให้เว็บช้าเกินไป — ลองติ๊ก "ค้นหาละเอียดขึ้น" ได้
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    ทำขึ้นเพื่อช่วยฝึกซ้อมและวิเคราะห์ตาเดินสำหรับเกมเอแม็ท ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของสมาคมครอสเวิร์ดแห่งประเทศไทย
+  </footer>
+</div>
+
+<script>
+/* ======================= ENGINE (equation validation) ======================= */
+const NUM_INFO = {
+  0:{points:1,count:5}, 1:{points:1,count:6}, 2:{points:1,count:6}, 3:{points:1,count:5},
+  4:{points:2,count:5}, 5:{points:2,count:4}, 6:{points:2,count:4}, 7:{points:2,count:4},
+  8:{points:2,count:4}, 9:{points:2,count:4}, 10:{points:3,count:2}, 11:{points:4,count:1},
+  12:{points:3,count:2}, 13:{points:6,count:1}, 14:{points:4,count:1}, 15:{points:4,count:1},
+  16:{points:4,count:1}, 17:{points:6,count:1}, 18:{points:4,count:1}, 19:{points:7,count:1},
+  20:{points:5,count:1}
+};
+const OP_INFO = {
+  '+':{points:2,count:4}, '-':{points:2,count:4}, '×':{points:2,count:4}, '÷':{points:2,count:4},
+  '=':{points:1,count:11}
+};
+const DUAL_INFO = {
+  'pm': {points:1, count:5, options:['+','-'], label:'±'},
+  'md': {points:1, count:4, options:['×','÷'], label:'×÷'}
+};
+const BLANK_INFO = {points:0, count:4};
+
+function gcdBig(a,b){ a=a<0n?-a:a; b=b<0n?-b:b; while(b){ [a,b]=[b,a%b]; } return a===0n?1n:a; }
+function frac(num, den=1n){
+  num = BigInt(num); den = BigInt(den);
+  if(den===0n) throw new Error('DIV_ZERO');
+  if(den<0n){ num=-num; den=-den; }
+  const g = gcdBig(num,den);
+  return { n: num/g, d: den/g };
+}
+function fMul(a,b){ return frac(a.n*b.n, a.d*b.d); }
+function fDiv(a,b){ if(b.n===0n) throw new Error('DIV_ZERO'); return frac(a.n*b.d, a.d*b.n); }
+function fAdd(a,b){ return frac(a.n*b.d + b.n*a.d, a.d*b.d); }
+function fSub(a,b){ return frac(a.n*b.d - b.n*a.d, a.d*b.d); }
+function fEq(a,b){ return a.n*b.d === b.n*a.d; }
+
+function validateEquation(cellSeq){
+  if(cellSeq.length < 3) return {valid:false, reason:'สั้นเกินไป'};
+  const raw = [];
+  let acc = '';
+  let accCells = [];
+  for(const c of cellSeq){
+    if(c.kind === 'digit'){ acc += c.face; accCells.push(c.face); }
+    else{
+      if(acc !== ''){ raw.push({type:'num', str:acc, cells:accCells}); acc=''; accCells=[]; }
+      raw.push({type:'op', sym:c.face});
+    }
+  }
+  if(acc !== ''){ raw.push({type:'num', str:acc, cells:accCells}); }
+  for(const t of raw){
+    if(t.type==='num' && t.str.length>1 && t.str[0]==='0') return {valid:false, reason:'เลขนำหน้าด้วย 0 ไม่ได้'};
+    if(t.type==='num' && t.cells.length>1){
+      const hasMultiDigitTile = t.cells.some(f=>f.length>1);
+      if(hasMultiDigitTile) return {valid:false, reason:'เบี้ยเลข 2 หลัก (10-20) วางต่อกับเบี้ยตัวอื่นเป็นเลขเดียวกันไม่ได้'};
+      if(t.cells.length>3) return {valid:false, reason:'เลขที่เกิดจากเบี้ยตัวเลขโดดต่อกันได้ไม่เกิน 3 หลัก (สูงสุด 999)'};
+    }
+  }
+  const tokens = [];
+  for(let i=0;i<raw.length;i++){
+    const t = raw[i];
+    if(t.type==='op' && t.sym==='-'){
+      const isStart = (i===0);
+      const afterEq = (i>0 && raw[i-1].type==='op' && raw[i-1].sym==='=');
+      if(isStart || afterEq){
+        const nxt = raw[i+1];
+        if(!nxt || nxt.type!=='num') return {valid:false, reason:'เครื่องหมายลบวางผิดตำแหน่ง'};
+        if(nxt.str === '0') return {valid:false, reason:'ห้ามติดลบศูนย์'};
+        tokens.push({type:'num', value: -BigInt(nxt.str)});
+        i++; continue;
+      }
+    }
+    if(t.type==='op' && t.sym==='+'){
+      const isStart = (i===0);
+      const afterEq = (i>0 && raw[i-1].type==='op' && raw[i-1].sym==='=');
+      if(isStart || afterEq) return {valid:false, reason:'ห้ามใช้ + นำหน้าตัวเลข'};
+    }
+    if(t.type==='num'){ tokens.push({type:'num', value: BigInt(t.str)}); }
+    else{ tokens.push({type:'op', sym: t.sym}); }
+  }
+  if(tokens.length===0 || tokens[0].type!=='num' || tokens[tokens.length-1].type!=='num')
+    return {valid:false, reason:'รูปแบบสมการไม่ถูกต้อง'};
+  for(let i=0;i<tokens.length;i++){
+    const expectNum = (i%2===0);
+    if(expectNum && tokens[i].type!=='num') return {valid:false, reason:'รูปแบบสมการไม่ถูกต้อง'};
+    if(!expectNum && tokens[i].type!=='op') return {valid:false, reason:'รูปแบบสมการไม่ถูกต้อง'};
+  }
+  const eqPositions = tokens.map((t,i)=> (t.type==='op'&&t.sym==='=') ? i : -1).filter(i=>i>=0);
+  if(eqPositions.length !== 1) return {valid:false, reason:'ต้องมีเครื่องหมาย = พอดี 1 ตัว'};
+  const eqPos = eqPositions[0];
+  if(eqPos===0 || eqPos===tokens.length-1) return {valid:false, reason:'สมการไม่สมบูรณ์'};
+  const left = tokens.slice(0, eqPos);
+  const right = tokens.slice(eqPos+1);
+  function evalSideClean(side){
+    const groups = [];
+    let curFactors = [side[0].value];
+    let curOps = [];
+    let curSign = 1;
+    for(let i=1;i<side.length;i+=2){
+      const opTok = side[i]; const numTok = side[i+1];
+      if(opTok.sym==='×' || opTok.sym==='÷'){ curFactors.push(numTok.value); curOps.push(opTok.sym); }
+      else if(opTok.sym==='+' || opTok.sym==='-'){
+        groups.push({sign:curSign, factors:curFactors, ops:curOps});
+        curSign = (opTok.sym==='+') ? 1 : -1;
+        curFactors = [numTok.value]; curOps = [];
+      } else { throw new Error('BAD_OP'); }
+    }
+    groups.push({sign:curSign, factors:curFactors, ops:curOps});
+    let total = frac(0n);
+    for(const g of groups){
+      let v = frac(g.factors[0]);
+      for(let k=0;k<g.ops.length;k++){
+        const nv = frac(g.factors[k+1]);
+        if(g.ops[k]==='×') v = fMul(v, nv); else v = fDiv(v, nv);
+      }
+      total = (g.sign===1) ? fAdd(total, v) : fSub(total, v);
+    }
+    return total;
+  }
+  let leftVal, rightVal;
+  try{ leftVal = evalSideClean(left); rightVal = evalSideClean(right); }
+  catch(e){
+    if(e.message==='DIV_ZERO') return {valid:false, reason:'หารด้วยศูนย์ไม่ได้'};
+    return {valid:false, reason:'สมการไม่ถูกต้อง'};
+  }
+  if(!fEq(leftVal, rightVal)) return {valid:false, reason:'สมการไม่เป็นจริง'};
+  const display = cellSeq.map(c=>c.face).join('');
+  return {valid:true, display};
+}
+
+/* ======================= SOLVER ======================= */
+const SIZE = 15, CENTER = 7;
+function buildDefaultBonusLayout(){
+  const layout = Array.from({length:SIZE},()=>Array(SIZE).fill('none'));
+  const TW=[[0,0],[0,7],[0,14],[7,0],[7,14],[14,0],[14,7],[14,14]];
+  const DW=[[1,1],[2,2],[3,3],[4,4],[10,10],[11,11],[12,12],[13,13],[1,13],[2,12],[3,11],[4,10],[10,4],[11,3],[12,2],[13,1]];
+  const TL=[[1,5],[1,9],[5,1],[5,5],[5,9],[5,13],[9,1],[9,5],[9,9],[9,13],[13,5],[13,9]];
+  const DL=[[0,3],[0,11],[2,6],[2,8],[3,0],[3,7],[3,14],[6,2],[6,6],[6,8],[6,12],[7,3],[7,11],[8,2],[8,6],[8,8],[8,12],[11,0],[11,7],[11,14],[12,6],[12,8],[14,3],[14,11]];
+  for(const [r,c] of TW) layout[r][c]='tw';
+  for(const [r,c] of DW) layout[r][c]='dw';
+  for(const [r,c] of TL) layout[r][c]='tl';
+  for(const [r,c] of DL) layout[r][c]='dl';
+  layout[CENTER][CENTER]='star';
+  return layout;
+}
+function emptyBoard(){
+  const bonus = buildDefaultBonusLayout();
+  return Array.from({length:SIZE},(_,r)=>Array.from({length:SIZE},(_,c)=>({tile:null, bonus:bonus[r][c]})));
+}
+function isBoardEmpty(board){
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(board[r][c].tile) return false;
+  return true;
+}
+function expandTileOptions(tile){
+  if(tile.kind==='digit') return [{kind:'digit', face:String(tile.face), points:NUM_INFO[tile.face].points, origin:'digit:'+tile.face}];
+  if(tile.kind==='op') return [{kind:'op', face:tile.face, points:OP_INFO[tile.face].points, origin:'op:'+tile.face}];
+  if(tile.kind==='dual'){
+    const info = DUAL_INFO[tile.dual];
+    return info.options.map(sym=>({kind:'op', face:sym, points:info.points, origin:'dual:'+tile.dual}));
+  }
+  if(tile.kind==='blank'){
+    const opts=[];
+    for(let n=0;n<=20;n++) opts.push({kind:'digit', face:String(n), points:0, origin:'blank'});
+    for(const s of ['+','-','×','÷','=']) opts.push({kind:'op', face:s, points:0, origin:'blank'});
+    return opts;
+  }
+  return [];
+}
+function getLine(board, dir, idx){
+  const out=[];
+  for(let i=0;i<SIZE;i++) out.push(dir==='H'?{r:idx,c:i}:{r:i,c:idx});
+  return out;
+}
+function findSpans(board, dir, idx, boardEmpty){
+  const line = getLine(board, dir, idx);
+  const spans=[];
+  for(let s=0;s<SIZE;s++){
+    if(s>0 && board[line[s-1].r][line[s-1].c].tile) continue;
+    for(let e=s+2;e<SIZE;e++){
+      if(e<SIZE-1 && board[line[e+1].r][line[e+1].c].tile) continue;
+      let hasEmpty=false, hasFilled=false;
+      for(let k=s;k<=e;k++){ if(board[line[k].r][line[k].c].tile) hasFilled=true; else hasEmpty=true; }
+      if(!hasEmpty) continue;
+      let connectedOk;
+      if(boardEmpty){ connectedOk = (idx===CENTER) && (s<=CENTER && CENTER<=e); }
+      else{ connectedOk = hasFilled; }
+      if(!connectedOk) continue;
+      spans.push({coords: line.slice(s,e+1)});
+    }
+  }
+  return spans;
+}
+function pieceMultiplier(bonus){ if(bonus==='tl'||bonus==='star') return 3; if(bonus==='dl') return 2; return 1; }
+function equationMultiplier(cellsInfo){
+  let mult=1;
+  for(const ci of cellsInfo){ if(!ci.isNew) continue; if(ci.bonus==='tw') mult*=3; if(ci.bonus==='dw') mult*=2; }
+  return mult;
+}
+function scoreSpan(cellsInfo){
+  let sum=0;
+  for(const ci of cellsInfo) sum += ci.isNew ? ci.points*pieceMultiplier(ci.bonus) : ci.points;
+  return sum * equationMultiplier(cellsInfo);
+}
+function perpendicularRun(board, dir, r, c){
+  const pdir = dir==='H'?'V':'H';
+  const before=[], after=[];
+  if(pdir==='V'){
+    let rr=r-1; while(rr>=0 && board[rr][c].tile){ before.unshift({r:rr,c}); rr--; }
+    rr=r+1; while(rr<SIZE && board[rr][c].tile){ after.push({r:rr,c}); rr++; }
+  } else {
+    let cc=c-1; while(cc>=0 && board[r][cc].tile){ before.unshift({r,c:cc}); cc--; }
+    cc=c+1; while(cc<SIZE && board[r][cc].tile){ after.push({r,c:cc}); cc++; }
+  }
+  const full=[...before, {r,c,isNewCenter:true}, ...after];
+  if(full.length<2) return null;
+  return full;
+}
+function cellInfoFromCoord(board, coord, isNewCenter, newFace, newKind, newPoints){
+  if(isNewCenter) return {kind:newKind, face:newFace, points:newPoints, isNew:true, bonus:board[coord.r][coord.c].bonus};
+  const t = board[coord.r][coord.c].tile;
+  return {kind:t.kind, face:t.face, points:t.points, isNew:false, bonus:board[coord.r][coord.c].bonus};
+}
+function solve(board, rack, options={}){
+  const maxResults = options.maxResults || 20;
+  const comboCap = options.maxCombos || 120000;
+  const timeBudgetMs = options.timeBudgetMs || 6000;
+  const startTime = Date.now();
+  const boardEmpty = isBoardEmpty(board);
+  const results=[]; let exploredCombos=0; let timedOut=false;
+
+  for(const dir of ['H','V']){
+    for(let idx=0; idx<SIZE; idx++){
+      if(timedOut) break;
+      const spans = findSpans(board, dir, idx, boardEmpty);
+      for(const span of spans){
+        if(timedOut) break;
+        const coords = span.coords;
+        const emptyPositions=[];
+        coords.forEach((co,pos)=>{ if(!board[co.r][co.c].tile) emptyPositions.push(pos); });
+        const k = emptyPositions.length;
+        if(k===0 || k>rack.length) continue;
+        const usedRackIdx = new Set();
+        const assignment = new Array(k);
+
+        function tryFinish(){
+          exploredCombos++;
+          if(exploredCombos>comboCap){ timedOut=true; return; }
+          if((exploredCombos & 1023)===0 && Date.now()-startTime>timeBudgetMs){ timedOut=true; return; }
+          const cellsInfo = coords.map((co,pos)=>{
+            const emptyIdx = emptyPositions.indexOf(pos);
+            if(emptyIdx>=0){
+              const a = assignment[emptyIdx];
+              return {kind:a.kind, face:a.face, points:a.points, isNew:true, bonus:board[co.r][co.c].bonus, coord:co, rackUid:a.rackUid, origin:a.origin};
+            } else {
+              const t = board[co.r][co.c].tile;
+              return {kind:t.kind, face:t.face, points:t.points, isNew:false, bonus:board[co.r][co.c].bonus, coord:co};
+            }
+          });
+          const mainSeq = cellsInfo.map(ci=>({kind:ci.kind, face:ci.face}));
+          const mainValid = validateEquation(mainSeq);
+          if(!mainValid.valid) return;
+          let crossTotal=0; const crossDisplays=[];
+          for(const ci of cellsInfo){
+            if(!ci.isNew) continue;
+            const run = perpendicularRun(board, dir, ci.coord.r, ci.coord.c);
+            if(!run) continue;
+            const runCellsInfo = run.map(rc=>cellInfoFromCoord(board, rc, !!rc.isNewCenter, ci.face, ci.kind, ci.points));
+            const runSeq = runCellsInfo.map(x=>({kind:x.kind, face:x.face}));
+            const rv = validateEquation(runSeq);
+            if(!rv.valid){ crossTotal=null; break; }
+            crossTotal += scoreSpan(runCellsInfo);
+            crossDisplays.push(rv.display);
+          }
+          if(crossTotal===null) return;
+          const mainScore = scoreSpan(cellsInfo);
+          let total = mainScore + crossTotal;
+          const bingo = (k===8);
+          if(bingo) total += 40;
+          results.push({
+            dir, score: total, mainScore, crossScore:crossTotal, bingo,
+            display: mainValid.display, crossDisplays,
+            placements: cellsInfo.filter(ci=>ci.isNew).map(ci=>({r:ci.coord.r,c:ci.coord.c,kind:ci.kind,face:ci.face,points:ci.points,bonus:ci.bonus,rackUid:ci.rackUid,origin:ci.origin})),
+            span:{r0:coords[0].r,c0:coords[0].c,r1:coords[coords.length-1].r,c1:coords[coords.length-1].c}
+          });
+        }
+        function rec(posIdx){
+          if(timedOut) return;
+          if(posIdx===k){ tryFinish(); return; }
+          const triedFaces = new Set();
+          for(let ri=0; ri<rack.length; ri++){
+            if(usedRackIdx.has(ri)) continue;
+            const opts = expandTileOptions(rack[ri]);
+            for(const opt of opts){
+              const key = opt.kind+':'+opt.face;
+              if(triedFaces.has(key)) continue;
+              triedFaces.add(key);
+              assignment[posIdx] = {kind:opt.kind, face:opt.face, points:opt.points, rackUid:rack[ri].uid, origin:opt.origin};
+              usedRackIdx.add(ri);
+              rec(posIdx+1);
+              usedRackIdx.delete(ri);
+              if(timedOut) return;
+            }
+          }
+        }
+        rec(0);
+      }
+    }
+  }
+  results.sort((a,b)=>b.score-a.score);
+  const dedup=[]; const seen=new Set();
+  for(const r of results){
+    const key = r.dir+'|'+r.span.r0+','+r.span.c0+'-'+r.span.r1+','+r.span.c1+'|'+r.display;
+    if(seen.has(key)) continue;
+    seen.add(key); dedup.push(r);
+    if(dedup.length>=maxResults) break;
+  }
+  return {results:dedup, timedOut, exploredCombos};
+}
+
+/* ======================= APP STATE / UI ======================= */
+let board = emptyBoard();
+let rack = [];
+let uidc = 1;
+let selectedCell = null;
+let lastResults = [];
+let activePreview = null;
+
+function nextUid(){ return uidc++; }
+
+function usageCounts(){
+  const used = {}; // key -> count
+  function bump(key){ used[key] = (used[key]||0)+1; }
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    const t = board[r][c].tile;
+    if(!t) continue;
+    bump(t.origin || (t.kind==='digit' ? 'digit:'+t.face : 'op:'+t.face));
+  }
+  for(const t of rack){
+    if(t.kind==='digit') bump('digit:'+t.face);
+    else if(t.kind==='op') bump('op:'+t.face);
+    else if(t.kind==='dual') bump('dual:'+t.dual);
+    else if(t.kind==='blank') bump('blank');
+  }
+  return used;
+}
+function remainingFor(key){
+  const used = usageCounts();
+  let total;
+  if(key.startsWith('digit:')) total = NUM_INFO[parseInt(key.split(':')[1])].count;
+  else if(key.startsWith('op:')) total = OP_INFO[key.split(':')[1]].count;
+  else if(key.startsWith('dual:')) total = DUAL_INFO[key.split(':')[1]].count;
+  else if(key==='blank') total = BLANK_INFO.count;
+  return total - (used[key]||0);
+}
+
+function bonusClass(b){ return b && b!=='none' ? 'bonus-'+b : ''; }
+
+function renderBoard(){
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  const previewCells = {};
+  if(activePreview){
+    for(const p of activePreview.placements) previewCells[p.r+'_'+p.c] = p;
+  }
+  for(let r=0;r<SIZE;r++){
+    for(let c=0;c<SIZE;c++){
+      const cell = board[r][c];
+      const div = document.createElement('div');
+      const pv = previewCells[r+'_'+c];
+      div.className = 'cell ' + (cell.tile ? 'tile' : bonusClass(cell.bonus)) + (pv ? ' preview-new':'') + (selectedCell && selectedCell.r===r && selectedCell.c===c ? ' selected':'');
+      if(pv){
+        div.textContent = pv.face;
+      } else if(cell.tile){
+        div.textContent = cell.tile.face;
+        const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent = cell.tile.points;
+        div.appendChild(lbl);
+      }
+      div.onclick = ()=>{ selectedCell = {r,c}; renderBoard(); renderCellEditor(); };
+      el.appendChild(div);
+    }
+  }
+}
+
+function tileLabel(kindFace){ return kindFace; }
+
+function renderCellEditor(){
+  const card = document.getElementById('cellEditorCard');
+  const box = document.getElementById('cellEditor');
+  const lbl = document.getElementById('cellCoordLabel');
+  if(!selectedCell){ card.style.display='none'; return; }
+  card.style.display='block';
+  const {r,c} = selectedCell;
+  lbl.textContent = `แถว ${r+1} คอลัมน์ ${c+1}`;
+  const cell = board[r][c];
+  let html = '';
+  if(cell.tile){
+    html += `<p>เบี้ยปัจจุบัน: <b style="font-family:'Space Mono'; font-size:18px;">${cell.tile.face}</b> (${cell.tile.points} แต้ม)</p>`;
+    html += `<button class="btn danger" onclick="clearCellTile()">ลบเบี้ยนี้ออกจากกระดาน</button>`;
+    html += `<button class="btn" style="margin-left:6px;" onclick="deselectCell()">ปิด</button>`;
+    box.innerHTML = html;
+  } else {
+    html += `<p style="font-size:13px; color:var(--muted);">ประเภทช่องพิเศษ:</p>`;
+    html += `<div class="row btnrow">`;
+    const opts = [['none','ปกติ'],['dl','x2 เบี้ย'],['tl','x3 เบี้ย'],['dw','x2 สมการ'],['tw','x3 สมการ'],['star','ดาว']];
+    for(const [v,label] of opts){
+      html += `<button class="${cell.bonus===v?'active':''}" onclick="setCellBonus('${v}')">${label}</button>`;
+    }
+    html += `</div>`;
+    html += `<p style="font-size:13px; color:var(--muted); margin-top:12px;">จิ้มเลือกเบี้ย "เดิม" ที่จะวางในช่องนี้ (เบี้ยจากตาก่อนหน้า):</p>`;
+    html += `<div class="tile-picker" id="cellTilePicker"></div>`;
+    html += `<button class="btn" style="margin-top:10px;" onclick="deselectCell()">ยกเลิก</button>`;
+    box.innerHTML = html;
+    renderCellTilePicker();
+  }
+}
+function renderCellTilePicker(){
+  const box = document.getElementById('cellTilePicker');
+  if(!box) return;
+  box.innerHTML='';
+  function addBtn(label, pts, disabled, onClick, remaining){
+    const b = document.createElement('button'); b.className='tp-btn'; b.textContent=label;
+    b.disabled = disabled;
+    b.onclick = onClick;
+    const cSpan = document.createElement('span'); cSpan.className='cnt'; cSpan.textContent=remaining;
+    b.appendChild(cSpan);
+    b.title = pts+' แต้ม';
+    box.appendChild(b);
+  }
+  for(let n=0;n<=20;n++){
+    const rem = remainingFor('digit:'+n);
+    addBtn(n, NUM_INFO[n].points, rem<=0, ()=>placeTileOnSelectedCell('digit', String(n), NUM_INFO[n].points, 'digit:'+n), rem);
+  }
+  for(const s of ['+','-','×','÷','=']){
+    const rem = remainingFor('op:'+s);
+    addBtn(s, OP_INFO[s].points, rem<=0, ()=>placeTileOnSelectedCell('op', s, OP_INFO[s].points, 'op:'+s), rem);
+  }
+}
+function placeTileOnSelectedCell(kind, face, points, origin){
+  if(!selectedCell) return;
+  const {r,c} = selectedCell;
+  board[r][c].tile = {kind, face, points, origin};
+  renderBoard(); renderCellEditor(); renderTilePicker();
+}
+function deselectCell(){ selectedCell=null; renderBoard(); renderCellEditor(); }
+function setCellBonus(v){ board[selectedCell.r][selectedCell.c].bonus = v; renderBoard(); renderCellEditor(); }
+function clearCellTile(){ board[selectedCell.r][selectedCell.c].tile = null; renderBoard(); renderCellEditor(); renderTilePicker(); }
+
+function renderRack(){
+  const box = document.getElementById('rackTiles');
+  box.innerHTML='';
+  document.getElementById('rackCountLabel').textContent = rack.length+'/8';
+  for(const t of rack){
+    const div = document.createElement('div'); div.className='rack-tile';
+    let face, pts;
+    if(t.kind==='digit'){ face=t.face; pts=NUM_INFO[t.face].points; }
+    else if(t.kind==='op'){ face=t.face; pts=OP_INFO[t.face].points; }
+    else if(t.kind==='dual'){ face=DUAL_INFO[t.dual].label; pts=DUAL_INFO[t.dual].points; }
+    else { face='␣'; pts=0; }
+    div.textContent = face;
+    const pt = document.createElement('span'); pt.className='pt'; pt.textContent=pts; div.appendChild(pt);
+    const rm = document.createElement('span'); rm.className='rm'; rm.textContent='×';
+    rm.onclick = ()=>{ rack = rack.filter(x=>x.uid!==t.uid); renderRack(); renderTilePicker(); };
+    div.appendChild(rm);
+    box.appendChild(div);
+  }
+}
+
+function renderTilePicker(){
+  const box = document.getElementById('tilePicker');
+  box.innerHTML='';
+  function addBtn(label, pts, disabled, onClick, remaining){
+    const b = document.createElement('button'); b.className='tp-btn'; b.textContent=label;
+    b.disabled = disabled;
+    b.onclick = onClick;
+    const c = document.createElement('span'); c.className='cnt'; c.textContent=remaining;
+    b.appendChild(c);
+    b.title = pts+' แต้ม';
+    box.appendChild(b);
+  }
+  const rackFull = rack.length>=8;
+  for(let n=0;n<=20;n++){
+    const rem = remainingFor('digit:'+n);
+    addBtn(n, NUM_INFO[n].points, rackFull||rem<=0, ()=>{ rack.push({uid:nextUid(), kind:'digit', face:n}); renderRack(); renderTilePicker(); }, rem);
+  }
+  for(const s of ['+','-','×','÷','=']){
+    const rem = remainingFor('op:'+s);
+    addBtn(s, OP_INFO[s].points, rackFull||rem<=0, ()=>{ rack.push({uid:nextUid(), kind:'op', face:s}); renderRack(); renderTilePicker(); }, rem);
+  }
+  for(const d of ['pm','md']){
+    const rem = remainingFor('dual:'+d);
+    addBtn(DUAL_INFO[d].label, DUAL_INFO[d].points, rackFull||rem<=0, ()=>{ rack.push({uid:nextUid(), kind:'dual', dual:d}); renderRack(); renderTilePicker(); }, rem);
+  }
+  {
+    const rem = remainingFor('blank');
+    addBtn('␣', 0, rackFull||rem<=0, ()=>{ rack.push({uid:nextUid(), kind:'blank'}); renderRack(); renderTilePicker(); }, rem);
+  }
+}
+
+function clearRack(){ rack=[]; renderRack(); renderTilePicker(); }
+function resetBoard(){ board = emptyBoard(); selectedCell=null; activePreview=null; lastResults=[]; renderBoard(); renderCellEditor(); document.getElementById('resultsBox').innerHTML='<p class="hint">กด "หา Best Play" ทางด้านขวาเพื่อเริ่มค้นหา</p>'; renderTilePicker(); }
+function loadDemo(){
+  resetBoard();
+  const demo = [{kind:'digit',face:'3'},{kind:'op',face:'+'},{kind:'digit',face:'4'},{kind:'op',face:'='},{kind:'digit',face:'7'}];
+  const startCol = CENTER-2;
+  demo.forEach((s,i)=>{
+    const info = s.kind==='digit' ? NUM_INFO[s.face] : OP_INFO[s.face];
+    board[CENTER][startCol+i].tile = {kind:s.kind, face:s.face, points:info.points, origin:(s.kind==='digit'?'digit:':'op:')+s.face};
+  });
+  rack = [
+    {uid:nextUid(),kind:'digit',face:9},{uid:nextUid(),kind:'op',face:'-'},{uid:nextUid(),kind:'digit',face:3},
+    {uid:nextUid(),kind:'op',face:'+'},{uid:nextUid(),kind:'digit',face:5},{uid:nextUid(),kind:'digit',face:2},
+    {uid:nextUid(),kind:'op',face:'='},{uid:nextUid(),kind:'blank'}
+  ];
+  renderBoard(); renderRack(); renderTilePicker();
+}
+
+function fmtCoord(r,c){ return `แถว ${r+1} คอลัมน์ ${c+1}`; }
+
+function renderResults(res){
+  const box = document.getElementById('resultsBox');
+  if(res.results.length===0){
+    box.innerHTML = `<p class="hint">ไม่พบตำแหน่งที่วางได้ ลองตรวจสอบกระดาน/เบี้ยในมือ หรือเบี้ยในมืออาจไม่สามารถต่อกับกระดานได้เลย</p>`;
+    return;
+  }
+  let html='';
+  res.results.forEach((r,i)=>{
+    html += `<div class="result" data-idx="${i}" onclick="previewResult(${i})">
+      <div class="rank">#${i+1}</div>
+      <div class="score">${r.score}</div>
+      <div>
+        <div class="eq">${r.display}${r.bingo?' <span class="bingo">บิงโก +40</span>':''}</div>
+        <div class="meta">${r.dir==='H'?'แนวนอน':'แนวตั้ง'} • เริ่ม ${fmtCoord(r.span.r0,r.span.c0)}${r.crossDisplays.length?' • สมการไขว้: '+r.crossDisplays.join(', '):''}</div>
+      </div>
+    </div>`;
+  });
+  box.innerHTML = html;
+  if(res.timedOut){
+    box.innerHTML += `<p class="hint">⚠️ การค้นหาถูกจำกัดเวลา/จำนวนความเป็นไปได้ อาจมีตัวเลือกที่ดีกว่านี้ที่ยังไม่ถูกสำรวจ ลองติ๊ก "ค้นหาละเอียดขึ้น" แล้วลองใหม่</p>`;
+  }
+  lastResults = res.results;
+}
+
+function previewResult(i){
+  const r = lastResults[i];
+  activePreview = r;
+  renderBoard();
+  document.querySelectorAll('.result').forEach(el=>el.classList.remove('active'));
+  const el = document.querySelector(`.result[data-idx="${i}"]`);
+  if(el) el.classList.add('active');
+  // add confirm button once
+  if(!document.getElementById('confirmBtn')){
+    const btn = document.createElement('button');
+    btn.id='confirmBtn'; btn.className='btn primary'; btn.style.width='100%'; btn.style.marginTop='10px';
+    btn.textContent='✅ ยืนยันวางเบี้ยชุดนี้ลงกระดาน';
+    btn.onclick = ()=>commitPreview();
+    document.getElementById('resultsBox').appendChild(btn);
+  }
+}
+
+function commitPreview(){
+  if(!activePreview) return;
+  for(const p of activePreview.placements){
+    board[p.r][p.c].tile = {kind:p.kind, face:p.face, points:p.points, origin:p.origin};
+    rack = rack.filter(t=>t.uid!==p.rackUid);
+  }
+  activePreview=null; lastResults=[];
+  document.getElementById('resultsBox').innerHTML = `<p class="hint">วางเบี้ยเรียบร้อยแล้ว! กด "หา Best Play" อีกครั้งเพื่อวางตาถัดไป</p>`;
+  renderBoard(); renderRack(); renderTilePicker();
+}
+
+function runSolve(){
+  const statusEl = document.getElementById('solveStatus');
+  const resultsBox = document.getElementById('resultsBox');
+  if(rack.length===0){ resultsBox.innerHTML = '<p class="hint">กรุณาเพิ่มเบี้ยในมือก่อน</p>'; return; }
+  resultsBox.innerHTML = `<div class="loading"><span class="spinner"></span> กำลังคำนวณหาตำแหน่งที่ดีที่สุด...</div>`;
+  statusEl.textContent='';
+  activePreview=null;
+  const deep = document.getElementById('deepSearch').checked;
+  setTimeout(()=>{
+    const t0 = performance.now();
+    const opts = deep ? {maxResults:25, maxCombos:600000, timeBudgetMs:15000} : {maxResults:20, maxCombos:120000, timeBudgetMs:6000};
+    const res = solve(board, rack, opts);
+    const t1 = performance.now();
+    statusEl.textContent = `ตรวจสอบไปแล้ว ${res.exploredCombos.toLocaleString()} ความเป็นไปได้ ใน ${((t1-t0)/1000).toFixed(1)} วินาที${res.timedOut?' (ถูกจำกัดเวลา)':''}`;
+    renderResults(res);
+  }, 50);
+}
+
+/* init */
+renderBoard(); renderCellEditor(); renderRack(); renderTilePicker();
+</script>
+</body>
+</html>
