@@ -1,0 +1,11 @@
+{
+  "name": "amath-local",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A-Math best-play helper for local use. No third-party dependencies.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/engine.test.js test/server.test.js"
+  },
+  "engines": { "node": ">=18" }
+}
