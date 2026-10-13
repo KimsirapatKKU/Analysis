@@ -574,7 +574,9 @@ function remainingFor(boardState, rackState, key){
 
 /* ======================= TYPED MOVE PARSER ======================= */
 /* Syntax: digits 0-9 are digit tiles, [10]..[20] is a single tile,
- * + - * / = are operator tiles (* = ×, / = ÷). Example: "3+4=7", "[12]-[3]=9". */
+ * + - * / = are operator tiles (* = ×, / = ÷). Example: "3+4=7", "[12]-[3]=9".
+ * Dual tiles: {+-} = ± used as +, {-+} = ± used as -, {×÷} = ×÷ used as ×, {÷×} = ×÷ used as ÷ (ASCII * and / also accepted).
+ * Blank tile: ? followed by what it stands for, e.g. ?5, ?[12], ?+, ?*, ?=. Example: "3?+4=7". */
 function parseTypedMove(text){
   const tokens = [];
   const s = String(text).replace(/\s+/g,'');
@@ -589,6 +591,32 @@ function parseTypedMove(text){
       tokens.push({kind:'digit', face:String(Number(n))}); i = end+1; continue;
     }
     const opMap = {'+':'+','-':'-','*':'×','×':'×','/':'÷','÷':'÷','=':'='};
+    if(ch==='{'){
+      const end = s.indexOf('}', i);
+      if(end<0) return {error:'ขาดวงเล็บปีกกาปิด } '};
+      const inner = s.slice(i+1,end);
+      if(inner.length!==2 || !opMap[inner[0]] || !opMap[inner[1]]) return {error:'เบี้ยสองหน้าที่ต้องเขียนเช่น {+-} {-+} {*/} {/*}'};
+      const a = opMap[inner[0]], b = opMap[inner[1]];
+      let dual = null;
+      if((a==='+'&&b==='-')||(a==='-'&&b==='+')) dual='pm';
+      else if((a==='×'&&b==='÷')||(a==='÷'&&b==='×')) dual='md';
+      if(!dual) return {error:'เบี้ยสองหน้ามีแค่ ± ({+-} {-+}) และ ×÷ ({*/} {/*})'};
+      tokens.push({kind:'op', face:a, dual}); i = end+1; continue;
+    }
+    if(ch==='?'){
+      const nx = s[i+1];
+      if(nx===undefined) return {error:'หลังเครื่องหมาย ? ต้องระบุว่าเบี้ยว่างแทนอะไร'};
+      if(/\d/.test(nx)){ tokens.push({kind:'digit', face:nx, blank:true}); i += 2; continue; }
+      if(nx==='['){
+        const end = s.indexOf(']', i);
+        if(end<0) return {error:'ขาดวงเล็บปิด ] '};
+        const n = s.slice(i+2,end);
+        if(!/^\d+$/.test(n) || Number(n)<10 || Number(n)>20) return {error:'เบี้ยวงเล็บต้องเป็นเลข 10-20'};
+        tokens.push({kind:'digit', face:String(Number(n)), blank:true}); i = end+1; continue;
+      }
+      if(opMap[nx]){ tokens.push({kind:'op', face:opMap[nx], blank:true}); i += 2; continue; }
+      return {error:`เบี้ยว่างแทน "${nx}" ไม่ได้`};
+    }
     if(opMap[ch]){ tokens.push({kind:'op', face:opMap[ch]}); i++; continue; }
     return {error:`ไม่รู้จักอักษร "${ch}"`};
   }
@@ -614,8 +642,14 @@ function applyTypedMove(boardState, rackState, start, dir, text){
       if(existing.face!==want.face) return {error:`ช่อง แถว ${r+1} คอลัมน์ ${c+1} มี "${existing.face}" อยู่แล้ว ไม่ใช่ "${want.face}"`};
       continue;
     }
-    const points = want.kind==='digit' ? NUM_INFO[Number(want.face)].points : OP_INFO[want.face].points;
-    next[r][c].tile = {kind:want.kind, face:want.face, points, origin: want.kind==='digit' ? 'digit:'+want.face : 'op:'+want.face};
+    let points, origin;
+    if(want.blank){ points = 0; origin = 'blank'; }
+    else if(want.dual){ points = DUAL_INFO[want.dual].points; origin = 'dual:'+want.dual; }
+    else {
+      points = want.kind==='digit' ? NUM_INFO[Number(want.face)].points : OP_INFO[want.face].points;
+      origin = want.kind==='digit' ? 'digit:'+want.face : 'op:'+want.face;
+    }
+    next[r][c].tile = {kind:want.kind, face:want.face, points, origin};
     placements.push({r, c, kind:want.kind, face:want.face, points, origin:next[r][c].tile.origin});
   }
   return {board: next, placements};
