@@ -322,7 +322,7 @@
           <p class="hint">เลือกจำนวนเบี้ยที่จะบิงโก (8-15 ตัว) ระบบจะสร้างแถว 1 แถวตามจำนวนที่เลือก</p>
           <div class="bingo-n" id="bingoN">
             <button>8</button><button>9</button><button>10</button><button>11</button>
-            <button>12</button><button>13</button><button>14</button><button>15</button>
+            <button>12</button><button>13</button><button>14</button><button data-n="15">15 ★</button>
           </div>
           <div style="margin-top:16px;"><div id="strip"></div></div>
           <div class="stripinfo" id="stripInfo"></div>
@@ -506,7 +506,7 @@ function renderModeUI(){
   document.getElementById('bingoArea').style.display = mode === 'bingo' ? '' : 'none';
   document.getElementById('opCard').style.display = mode === 'full' ? '' : 'none';
   document.getElementById('checkBtn').style.display = mode === 'full' ? '' : 'none';
-  document.querySelectorAll('#bingoN button').forEach(b => b.classList.toggle('active', Number(b.textContent) === bingoN));
+  document.querySelectorAll('#bingoN button').forEach(b => b.classList.toggle('active', Number(b.dataset.n || b.textContent) === bingoN));
   document.getElementById('boardTitle').textContent = mode === 'full' ? 'กระดาน' : `บิงโก ${bingoN} ตัว`;
 }
 
@@ -752,7 +752,7 @@ function runSolve(){
 /* ---------- wiring ---------- */
 document.getElementById('modeFull').onclick = () => setMode('full');
 document.getElementById('modeBingo').onclick = () => setMode('bingo');
-document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.textContent)));
+document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.dataset.n || b.textContent)));
 document.getElementById('undoBtn').onclick = undo;
 document.getElementById('checkBtn').onclick = checkBoardNow;
 document.getElementById('resetBtn').onclick = () => {
