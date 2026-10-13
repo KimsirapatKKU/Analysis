@@ -84,11 +84,11 @@ function validateEquation(cellSeq){
     if(!expectNum && tokens[i].type!=='op') return {valid:false, reason:'รูปแบบสมการไม่ถูกต้อง'};
   }
   const eqPositions = tokens.map((t,i)=> (t.type==='op'&&t.sym==='=') ? i : -1).filter(i=>i>=0);
-  if(eqPositions.length !== 1) return {valid:false, reason:'ต้องมีเครื่องหมาย = พอดี 1 ตัว'};
-  const eqPos = eqPositions[0];
-  if(eqPos===0 || eqPos===tokens.length-1) return {valid:false, reason:'สมการไม่สมบูรณ์'};
-  const left = tokens.slice(0, eqPos);
-  const right = tokens.slice(eqPos+1);
+  if(eqPositions.length < 1) return {valid:false, reason:'ต้องมีเครื่องหมาย = อย่างน้อย 1 ตัว'};
+  if(eqPositions[0]===0 || eqPositions[eqPositions.length-1]===tokens.length-1) return {valid:false, reason:'สมการไม่สมบูรณ์'};
+  const bounds = [-1, ...eqPositions, tokens.length];
+  const segments = [];
+  for(let j=0;j<bounds.length-1;j++) segments.push(tokens.slice(bounds[j]+1, bounds[j+1]));
   function evalSideClean(side){
     const groups = [];
     let curFactors = [side[0].value];
@@ -115,13 +115,13 @@ function validateEquation(cellSeq){
     }
     return total;
   }
-  let leftVal, rightVal;
-  try{ leftVal = evalSideClean(left); rightVal = evalSideClean(right); }
+  let values;
+  try{ values = segments.map(evalSideClean); }
   catch(e){
     if(e.message==='DIV_ZERO') return {valid:false, reason:'หารด้วยศูนย์ไม่ได้'};
     return {valid:false, reason:'สมการไม่ถูกต้อง'};
   }
-  if(!fEq(leftVal, rightVal)) return {valid:false, reason:'สมการไม่เป็นจริง'};
+  for(let j=1;j<values.length;j++) if(!fEq(values[0], values[j])) return {valid:false, reason:'สมการไม่เป็นจริง'};
   const display = cellSeq.map(c=>c.face).join('');
   return {valid:true, display};
 }
@@ -309,7 +309,6 @@ function solve(board, rack, options={}){
           }
         }
         if(k===0 || k>rack.length) continue;
-        if(fixedEq>1) continue;
         if(fixedEq===0 && !rackHasEq) continue;
         const cx=new Array(L).fill(null), pm=new Array(L).fill(1), suf=new Array(L+1).fill(0);
         let feasible=true;
@@ -358,7 +357,7 @@ function solve(board, rack, options={}){
     if(i===0 && face!=='-') return false;
     if(i===pL-1) return false;
     if(pt===2 && !(pf==='=' && face==='-')) return false;
-    if(face==='='){ nEq=eq+1; if(nEq>1) return false; } else nEq=eq;
+    nEq = (face==='=') ? eq+1 : eq;
     nRun=0; nMulti=false; nFZ=false; nPT=2; nPF=face; return true;
   }
 
@@ -391,17 +390,24 @@ function solve(board, rack, options={}){
       if(t==='-' && (j===0 || toks[j-1]==='=') && typeof toks[j+1]==='number'){ t2.push(-toks[j+1]); j++; }
       else t2.push(t);
     }
-    let eq=-1;
+    const eqs=[];
     for(let j=0;j<t2.length;j++){
       const isNum = typeof t2[j]==='number';
       if((j%2===0)!==isNum) return false;
-      if(!isNum && t2[j]==='='){ if(eq!==-1) return false; eq=j; }
+      if(!isNum && t2[j]==='=') eqs.push(j);
     }
-    if(eq<=0 || eq>=t2.length-1) return false;
+    if(eqs.length<1 || eqs[0]===0 || eqs[eqs.length-1]===t2.length-1) return false;
     fmx=0;
-    const l=fev(t2,0,eq), r=fev(t2,eq+1,t2.length);
-    if(!isFinite(l) || !isFinite(r)) return false;
-    return Math.abs(l-r) > 1e-9*Math.max(1,fmx);
+    const vals=[]; let a=0;
+    for(let j=0;j<=eqs.length;j++){
+      const b = j<eqs.length ? eqs[j] : t2.length;
+      const v=fev(t2,a,b);
+      if(!isFinite(v)) return false;
+      vals.push(v); a=b+1;
+    }
+    const tol=1e-9*Math.max(1,fmx);
+    for(let j=1;j<vals.length;j++) if(Math.abs(vals[j]-vals[0])>tol) return true;
+    return false;
   }
 
   function leaf(S, X){
@@ -445,7 +451,7 @@ function solve(board, rack, options={}){
   function dfs(i, S, X, eq, run, multi, fz, pt, pf){
     if(timedOut) return;
     if((++nodeCount & 2047)===0 && Date.now()-startTime>timeBudgetMs){ timedOut=true; return; }
-    if(i===pL){ if(eq===1) leaf(S, X); return; }
+    if(i===pL){ if(eq>=1) leaf(S, X); return; }
     if(!pEmpty[i]){
       const f=pFaces[i]; const dg=pKinds[i]==='digit';
       if(!applyCell(i, dg, f, dg?String(f).length:0, eq, run, multi, fz, pt, pf)) return;
