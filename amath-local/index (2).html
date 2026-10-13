@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>เอแม็ท • ตัวช่วยหาเบี้ยที่ดีที่สุด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chonburi&family=Sarabun:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chonburi&family=Sarabun:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+  :root{
+    --bg-1:#0f1b26; --bg-2:#070d13;
+    --felt:#1d4a3c; --felt-2:#163a2f; --felt-line:rgba(255,255,255,.06);
+    --wood:#4a2f1b; --wood-2:#2a180c;
+    --ivory:#fff8e8; --ivory-2:#eadbb8; --ink:#2b1d10; --ink-soft:#7a6446;
+    --gold:#e9bd5e; --gold-2:#b8862f; --gold-glow:rgba(233,189,94,.35);
+    --cream:#f5ead2; --muted:#a9b8b0;
+    --glass:rgba(255,255,255,.045); --glass-line:rgba(255,236,196,.12);
+    --dl:#f4a261; --tl:#5dbbea; --dw:#f5d36b; --tw:#e8675c;
+    --danger:#d9534f;
+    --radius-lg:18px; --radius:12px; --radius-sm:8px;
+    --shadow-card:0 18px 40px -18px rgba(0,0,0,.6);
+    --ease: cubic-bezier(.2,.8,.2,1);
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0; min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, rgba(233,189,94,.10), transparent 60%),
+      radial-gradient(900px 700px at 90% 110%, rgba(93,187,234,.08), transparent 60%),
+      linear-gradient(180deg,var(--bg-1),var(--bg-2));
+    color:var(--cream);
+    font-family:'Sarabun',system-ui,sans-serif;
+    padding:28px 16px 64px;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{font-family:'Chonburi',serif; font-weight:400; margin:0; letter-spacing:.3px;}
+  .wrap{max-width:1200px; margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header{text-align:center; margin-bottom:26px; animation:fadeUp .6s var(--ease) both;}
+  .brand-badge{
+    display:inline-flex; align-items:center; gap:8px; padding:5px 14px; border-radius:999px;
+    background:rgba(233,189,94,.12); border:1px solid rgba(233,189,94,.35);
+    color:var(--gold); font-size:12px; letter-spacing:1.5px; text-transform:uppercase; font-weight:600;
+  }
+  header h1{
+    margin-top:14px; font-size:clamp(26px,4.6vw,40px); line-height:1.25;
+    background:linear-gradient(180deg,#fff3cf 0%,var(--gold) 55%,var(--gold-2) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 2px 0 rgba(0,0,0,.35));
+  }
+  header p{color:var(--muted); font-size:14.5px; margin:10px auto 0; max-width:620px; line-height:1.7;}
+
+  .layout{display:grid; grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr); gap:24px; align-items:start;}
+  @media (max-width:920px){ .layout{grid-template-columns:1fr;} }
+
+  /* ---------- cards ---------- */
+  .card{
+    position:relative;
+    background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    border:1px solid var(--glass-line);
+    border-radius:var(--radius-lg);
+    padding:18px;
+    margin-bottom:18px;
+    box-shadow:var(--shadow-card);
+    backdrop-filter:blur(8px);
+    animation:fadeUp .6s var(--ease) both;
+  }
+  .card:nth-child(2){animation-delay:.05s;}
+  .card:nth-child(3){animation-delay:.1s;}
+  .card h2{
+    font-size:17px; color:var(--gold); margin-bottom:14px;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .card h2 small{font-family:'Sarabun'; font-size:12px; color:var(--muted); font-weight:500;}
+
+  /* ---------- board ---------- */
+  .board-frame{
+    position:relative;
+    background:
+      linear-gradient(160deg,#5a3a20,#2a180c 70%),
+      repeating-linear-gradient(90deg,rgba(255,255,255,.03) 0 2px,transparent 2px 6px);
+    border-radius:20px; padding:14px;
+    border:1px solid rgba(233,189,94,.4);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.08), inset 0 -10px 30px rgba(0,0,0,.45), 0 20px 40px -20px rgba(0,0,0,.8);
+  }
+  .board{
+    display:grid; grid-template-columns:repeat(15,1fr); gap:3px;
+    background:linear-gradient(180deg,var(--felt),var(--felt-2));
+    padding:8px; border-radius:12px; aspect-ratio:1/1;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.35);
+  }
+  .cell{
+    position:relative; aspect-ratio:1/1; min-width:0;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:4px;
+    font-family:'Space Mono',monospace; font-weight:700;
+    font-size:clamp(9px,1.7vw,14px);
+    cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+    background:rgba(255,255,255,.035);
+    box-shadow:inset 0 0 0 1px var(--felt-line);
+    color:rgba(245,234,210,.28);
+    transition:transform .15s var(--ease), box-shadow .2s var(--ease), filter .15s;
+  }
+  .cell:hover{filter:brightness(1.18); transform:translateY(-1px);}
+  .cell:active{transform:scale(.96);}
+  .cell:focus-visible{outline:2px solid var(--gold); outline-offset:1px;}
+  .cell.bonus-dl{background:linear-gradient(160deg,#ffbf86,var(--dl)); color:#4a2508; box-shadow:inset 0 -2px 0 rgba(0,0,0,.18);}
+  .cell.bonus-tl{background:linear-gradient(160deg,#9bd9f7,var(--tl)); color:#063047; box-shadow:inset 0 -2px 0 rgba(0,0,0,.18);}
+  .cell.bonus-dw{background:linear-gradient(160deg,#ffe593,var(--dw)); color:#4a3608; box-shadow:inset 0 -2px 0 rgba(0,0,0,.18);}
+  .cell.bonus-tw{background:linear-gradient(160deg,#ff9a8f,var(--tw)); color:#3f0c08; box-shadow:inset 0 -2px 0 rgba(0,0,0,.18);}
+  .cell.bonus-star{background:linear-gradient(160deg,#9bd9f7,var(--tl)); color:#063047;}
+  .cell.bonus-star::after{content:"★"; font-size:1.25em;}
+  /* premium labels */
+  .cell.bonus-dl::after,.cell.bonus-tl::after,.cell.bonus-dw::after,.cell.bonus-tw::after{
+    font-family:'Sarabun',sans-serif; font-weight:700; font-size:.5em; letter-spacing:.2px; opacity:.85;
+  }
+  .cell.bonus-dl::after{content:"×2";}
+  .cell.bonus-tl::after{content:"×3";}
+  .cell.bonus-dw::after{content:"×2 ส";}
+  .cell.bonus-tw::after{content:"×3 ส";}
+  .cell .lbl{position:absolute; bottom:1px; right:2px; font-size:.5em; color:var(--ink-soft); font-family:'Sarabun'; font-weight:700;}
+
+  /* placed tile = real 3D tile */
+  .cell.tile{
+    background:linear-gradient(160deg,#fffdf6 0%,var(--ivory) 45%,var(--ivory-2) 100%);
+    color:var(--ink); border-radius:5px;
+    box-shadow:0 3px 0 #b9a47a, 0 6px 10px -4px rgba(0,0,0,.6), inset 0 1px 0 #fff, inset 0 0 0 1px rgba(120,90,40,.25);
+    transform:translateY(-1px);
+  }
+  .cell.tile .lbl{color:var(--ink-soft);}
+  .cell.selected{outline:2px solid #fff; outline-offset:-2px; z-index:2; box-shadow:0 0 0 4px rgba(233,189,94,.35);}
+  .cell.preview-new{
+    background:linear-gradient(160deg,#fffbe8,#ffe9a8);
+    color:#6b3a0c;
+    box-shadow:0 0 0 2px var(--gold), 0 0 18px var(--gold-glow);
+    animation:pop .3s var(--ease), glow 1.8s ease-in-out infinite;
+    z-index:3;
+  }
+  @keyframes pop{from{transform:scale(.6);} to{transform:scale(1);}}
+  @keyframes glow{50%{box-shadow:0 0 0 2px var(--gold), 0 0 26px rgba(233,189,94,.6);}}
+
+  .legend{display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:14px; font-size:12.5px; color:var(--muted);}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .swatch{width:14px; height:14px; border-radius:4px; display:inline-block; box-shadow:inset 0 -2px 0 rgba(0,0,0,.2);}
+
+  /* ---------- buttons ---------- */
+  .btnrow button, select, .btn{
+    font-family:'Sarabun',sans-serif; font-size:13.5px; font-weight:600;
+    padding:8px 14px; border-radius:999px;
+    border:1px solid rgba(233,189,94,.35); background:rgba(255,255,255,.04); color:var(--cream);
+    cursor:pointer; transition:transform .15s var(--ease), background .2s, border-color .2s, filter .2s;
+  }
+  .btn:hover,.btnrow button:hover{background:rgba(233,189,94,.12); border-color:var(--gold);}
+  .btn:active,.btnrow button:active{transform:scale(.97);}
+  .btn:focus-visible,.btnrow button:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .cell-editor .btnrow{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .btnrow button.active{background:linear-gradient(180deg,#f3cd74,var(--gold)); color:var(--ink); border-color:transparent; font-weight:700;}
+  .btn.primary{
+    background:linear-gradient(180deg,#f6d27a,var(--gold) 60%,var(--gold-2));
+    color:var(--ink); font-weight:700; border:none;
+    box-shadow:0 6px 18px -6px var(--gold-glow), inset 0 1px 0 rgba(255,255,255,.6);
+  }
+  .btn.primary:hover{filter:brightness(1.06); background:linear-gradient(180deg,#f6d27a,var(--gold) 60%,var(--gold-2));}
+  .btn.danger{background:linear-gradient(180deg,#e96b66,var(--danger)); color:#fff; border:none;}
+  .btn:disabled{opacity:.35; cursor:not-allowed; transform:none;}
+
+  /* ---------- rack ---------- */
+  .rack-tiles{
+    display:flex; flex-wrap:wrap; gap:10px; min-height:66px; padding:12px;
+    background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.18));
+    border-radius:var(--radius); box-shadow:inset 0 2px 8px rgba(0,0,0,.45);
+  }
+  .rack-tile{
+    width:48px; height:48px; border-radius:8px;
+    background:linear-gradient(160deg,#fffdf6,var(--ivory) 50%,var(--ivory-2));
+    color:var(--ink); display:flex; align-items:center; justify-content:center;
+    font-family:'Space Mono',monospace; font-weight:700; font-size:17px;
+    position:relative; box-shadow:0 4px 0 #b9a47a, 0 8px 12px -6px rgba(0,0,0,.7);
+    animation:pop .3s var(--ease);
+  }
+  .rack-tile .rm{
+    position:absolute; top:-7px; right:-7px; width:20px; height:20px; border-radius:50%;
+    background:var(--danger); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; border:2px solid #1a1009; box-shadow:0 2px 6px rgba(0,0,0,.4); transition:transform .15s;
+  }
+  .rack-tile .rm:hover{transform:scale(1.12);}
+  .rack-tile .pt{position:absolute; bottom:2px; right:4px; font-size:9px; font-family:'Sarabun'; font-weight:700; color:var(--ink-soft);}
+
+  .tile-picker{display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:7px; margin-top:12px; max-height:260px; overflow-y:auto; padding:2px 6px 2px 2px;}
+  .tp-btn{
+    aspect-ratio:1/1; border-radius:9px; border:none; cursor:pointer;
+    background:linear-gradient(160deg,#fffdf6,var(--ivory) 50%,var(--ivory-2));
+    color:var(--ink); font-family:'Space Mono',monospace; font-weight:700; font-size:14px;
+    position:relative; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 0 #b9a47a; transition:transform .12s var(--ease), filter .15s;
+  }
+  .tp-btn:hover:not(:disabled){transform:translateY(-2px); filter:brightness(1.04);}
+  .tp-btn:active:not(:disabled){transform:translateY(1px) scale(.97);}
+  .tp-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .tp-btn:disabled{opacity:.28; cursor:not-allowed; box-shadow:none; filter:grayscale(.4);}
+  .tp-btn .cnt{
+    position:absolute; bottom:-6px; right:-4px; min-width:18px; height:18px; padding:0 4px;
+    border-radius:999px; background:var(--ink); color:var(--gold);
+    font-size:10px; font-family:'Sarabun'; font-weight:700; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 4px rgba(0,0,0,.4);
+  }
+
+  .hint{font-size:13px; color:var(--muted); line-height:1.7; margin:10px 0 0;}
+
+  /* ---------- results ---------- */
+  .result{
+    display:flex; align-items:center; gap:14px; padding:12px 14px; border-radius:14px;
+    background:rgba(0,0,0,.22); margin-bottom:10px; cursor:pointer;
+    border:1px solid rgba(255,255,255,.05);
+    transition:transform .18s var(--ease), border-color .2s, background .2s;
+    animation:fadeUp .4s var(--ease) both;
+  }
+  .result:hover{border-color:rgba(233,189,94,.55); transform:translateX(3px);}
+  .result.active{border-color:var(--gold); background:linear-gradient(90deg,rgba(233,189,94,.18),rgba(233,189,94,.04));}
+  .result .rank{
+    font-family:'Chonburi',serif; color:var(--gold); font-size:13px;
+    min-width:34px; height:26px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+    background:rgba(233,189,94,.1); border:1px solid rgba(233,189,94,.3);
+  }
+  .result .score{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:22px; min-width:58px; text-align:center;
+    background:linear-gradient(180deg,#fff,#d8e6df); -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .result .eq{font-family:'Space Mono',monospace; font-size:15px; flex:1; color:var(--cream); word-break:break-word;}
+  .result .meta{font-size:11.5px; color:var(--muted); margin-top:3px;}
+  .result .bingo{background:linear-gradient(180deg,#f6d27a,var(--gold)); color:var(--ink); font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; margin-left:6px; vertical-align:middle;}
+
+  #confirmBtn{width:100%; margin-top:12px; padding:12px; font-size:14.5px;}
+  .status{font-size:12.5px; color:var(--muted); margin-top:10px;}
+  .loading{display:flex; align-items:center; gap:12px; color:var(--gold); font-size:14px; padding:16px;}
+  .spinner{width:20px; height:20px; border:3px solid rgba(233,189,94,.2); border-top-color:var(--gold); border-radius:50%; animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;}}
+
+  /* checkbox */
+  label.hint input[type=checkbox]{accent-color:var(--gold); width:16px; height:16px;}
+
+  footer{text-align:center; color:var(--muted); font-size:12px; margin-top:30px; line-height:1.8; opacity:.85;}
+  a{color:var(--gold);}
+
+  @media (max-width:520px){
+    .board{gap:2px; padding:6px;}
+    .board-frame{padding:9px; border-radius:16px;}
+    .card{padding:14px;}
+    .rack-tile{width:42px; height:42px; font-size:15px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none !important; transition:none !important;}
+  }
+
+  .unsure{box-shadow:0 0 0 2px #ff8a5b, 0 0 14px rgba(255,138,91,.55) !important;}
+  .toolbar{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .toolbar .btn{flex:1 1 auto;}
+  .field{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px;}
+  .field input[type=text], .field input[type=number]{
+    font-family:'Space Mono',monospace; font-size:14px; padding:8px 12px; border-radius:10px; min-width:0;
+    border:1px solid rgba(233,189,94,.35); background:rgba(0,0,0,.25); color:var(--cream); flex:1 1 160px;
+  }
+  .field input[type=number]{flex:0 0 70px;}
+  .field select{font-family:'Sarabun',sans-serif;}
+  .msg{font-size:13px; margin-top:10px; padding:10px 12px; border-radius:10px; line-height:1.6;}
+  .msg.err{background:rgba(217,83,79,.14); border:1px solid rgba(217,83,79,.4); color:#ffc9c6;}
+  .msg.ok{background:rgba(93,187,234,.12); border:1px solid rgba(93,187,234,.35); color:#cdeeff;}
+  .upload{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .upload label{flex:1 1 180px; text-align:center; padding:10px; border-radius:12px; cursor:pointer;
+    border:1px dashed rgba(233,189,94,.5); background:rgba(233,189,94,.05); font-size:13px; color:var(--gold);}
+  .upload label:hover{background:rgba(233,189,94,.12);}
+  .upload input{display:none;}
+  .list-note{font-size:12.5px; color:var(--muted); margin-top:8px;}
+  .msg{white-space:pre-line;}
+
+  #strip{display:grid; gap:6px; padding:14px; background:linear-gradient(180deg,var(--felt),var(--felt-2)); border-radius:16px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.35), inset 0 0 40px rgba(0,0,0,.35);}
+  #strip .cell{font-size:clamp(13px,2.4vw,20px); aspect-ratio:auto; height:clamp(48px,8vw,70px);}
+  .modes{display:flex; gap:8px; margin-bottom:14px;}
+  .modes button{flex:1; padding:10px; font-size:14px;}
+  .modes button.active{background:linear-gradient(180deg,#f6d27a,var(--gold) 60%,var(--gold-2)); color:var(--ink); border-color:transparent; font-weight:700;}
+  .bingo-n{display:grid; grid-template-columns:repeat(8,1fr); gap:6px; margin-top:10px;}
+  .bingo-n button{padding:8px 0; font-family:'Space Mono',monospace; font-weight:700;}
+  .bingo-n button.active{background:linear-gradient(180deg,#f6d27a,var(--gold) 60%,var(--gold-2)); color:var(--ink); border-color:transparent;}
+  .stripinfo{font-size:13px; color:var(--muted); margin-top:10px;}
+  .msg{white-space:pre-line;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="brand-badge">A-MATH · Best Play</span>
+    <h1>เอแม็ท — ตัวช่วยหาเบี้ยที่ดีที่สุด</h1>
+    <p>เลือกโหมดกระดานเต็มเพื่อวางเกมทั้งกระดาน หรือโหมดบิงโกเพื่อหาการเรียงที่ใช้เบี้ยทั้งหมดในแถวเดียว เกมจะถูกเก็บไว้ในเครื่องนี้</p>
+  </header>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <div class="modes">
+          <button class="btn" id="modeFull">🧩 กระดานเต็ม</button>
+          <button class="btn" id="modeBingo">🎯 โหมดบิงโก</button>
+        </div>
+        <h2 id="boardTitle">กระดาน</h2>
+
+        <div id="fullArea">
+          <div class="board-frame"><div class="board" id="board"></div></div>
+          <div class="legend">
+            <span><i class="swatch" style="background:linear-gradient(160deg,#ffbf86,var(--dl))"></i>×2 เฉพาะเบี้ย</span>
+            <span><i class="swatch" style="background:linear-gradient(160deg,#9bd9f7,var(--tl))"></i>×3 เฉพาะเบี้ย</span>
+            <span><i class="swatch" style="background:linear-gradient(160deg,#ffe593,var(--dw))"></i>×2 ทั้งสมการ</span>
+            <span><i class="swatch" style="background:linear-gradient(160deg,#ff9a8f,var(--tw))"></i>×3 ทั้งสมการ</span>
+            <span><i class="swatch" style="background:linear-gradient(160deg,#fffdf6,var(--ivory-2))"></i>เบี้ยที่วางแล้ว</span>
+          </div>
+        </div>
+
+        <div id="bingoArea" style="display:none;">
+          <p class="hint">เลือกจำนวนเบี้ยที่จะบิงโก (8-15 ตัว) ระบบจะสร้างแถว 1 แถวตามจำนวนที่เลือก</p>
+          <div class="bingo-n" id="bingoN">
+            <button>8</button><button>9</button><button>10</button><button>11</button>
+            <button>12</button><button>13</button><button>14</button><button>15</button>
+          </div>
+          <div style="margin-top:16px;"><div id="strip"></div></div>
+          <div class="stripinfo" id="stripInfo"></div>
+          <p class="hint">คลิกช่องที่มีเบี้ยอยู่แล้วบนกระดาน แล้วเลือกเบี้ยนั้น ช่องที่เหลือคือช่องที่ต้องเติมจากเบี้ยในมือ</p>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn" id="undoBtn">↶ ย้อนกลับ</button>
+          <button class="btn" id="checkBtn">ตรวจกระดาน</button>
+          <button class="btn danger" id="resetBtn">เริ่มใหม่</button>
+        </div>
+        <div id="boardMsg"></div>
+      </div>
+
+      <div class="card" id="resultsCard">
+        <h2>ผลลัพธ์ Best Play</h2>
+        <div id="resultsBox"><p class="hint">กด "หา Best Play" เพื่อเริ่มค้นหา</p></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" id="cellEditorCard" style="display:none;">
+        <h2>ช่องที่เลือก <small id="cellCoordLabel"></small></h2>
+        <div id="cellEditor"></div>
+      </div>
+
+      <div class="card" id="opCard">
+        <h2>ตาของคู่แข่ง</h2>
+        <p class="hint">เลือกช่องเริ่มต้นบนกระดาน เลือกทิศทาง แล้วพิมพ์สมการ เช่น <code>3+4=7</code> หรือ <code>[12]-[2]=10</code> (เลข 10-20 ใส่ในวงเล็บ) ใช้ <code>*</code> แทน × และ <code>/</code> แทน ÷</p>
+        <div class="field">
+          <select id="opDir"><option value="H">แนวนอน</option><option value="V">แนวตั้ง</option></select>
+          <input type="text" id="opText" placeholder="เช่น 3+4=7" autocomplete="off">
+          <button class="btn primary" id="opApply">ใส่ตา</button>
+        </div>
+        <div id="opMsg"></div>
+      </div>
+
+      <div class="card">
+        <h2>เบี้ยในมือ <small id="rackCountLabel">0/8</small></h2>
+        <div class="rack-tiles" id="rackTiles"></div>
+        <div class="toolbar"><button class="btn" id="clearRackBtn">ล้างเบี้ยในมือ</button></div>
+        <h3 style="font-family:'Sarabun'; font-size:14px; color:var(--gold); margin-top:14px;">เพิ่มเบี้ยในมือ</h3>
+        <div class="tile-picker" id="tilePicker"></div>
+      </div>
+
+      <div class="card">
+        <h2>คำนวณ</h2>
+        <label class="hint" id="deepRow" style="display:flex; align-items:center; gap:6px;">
+          <input type="checkbox" id="deepSearch"> ค้นหาละเอียดขึ้น (ช้าลง)
+        </label>
+        <button class="btn primary" id="solveBtn" style="width:100%; margin-top:12px; padding:12px; font-size:15px;">🔍 หา Best Play</button>
+        <div class="status" id="solveStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>ทำขึ้นเพื่อช่วยฝึกซ้อมและวิเคราะห์ตาเดินสำหรับเกมเอแม็ท ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการ</footer>
+</div>
+<script src="/engine.js"></script>
+<script>
+const E = window.AMath;
+const STORE_KEY = 'amath-state-v2';
+const SIZE = E.SIZE;
+const STRIP_ROW = E.CENTER;
+
+let mode = 'full';            // 'full' | 'bingo'
+let bingoN = 8;               // tiles in the bingo line (8-15)
+let board = E.emptyBoard();
+let rack = [];
+let uidCounter = 1;
+let selected = null;
+let results = [];
+let preview = null;
+let history = [];
+
+/* ---------- strip helpers (bingo mode) ---------- */
+function stripStart(n){ return Math.floor((SIZE - n) / 2); }
+function stripCells(){
+  const s = stripStart(bingoN);
+  return Array.from({ length: bingoN }, (_, i) => ({ r: STRIP_ROW, c: s + i }));
+}
+
+/* ---------- persistence and undo ---------- */
+function snapshot(){ return JSON.stringify({ mode, bingoN, tiles: board.map(row => row.map(c => c.tile)), rack }); }
+function pushHistory(){ history.push(snapshot()); if (history.length > 200) history.shift(); }
+function restore(json){
+  const data = JSON.parse(json);
+  mode = data.mode; bingoN = data.bingoN;
+  board = E.emptyBoard();
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) board[r][c].tile = data.tiles[r][c];
+  rack = data.rack; selected = null; preview = null; results = [];
+  commitChange();
+}
+function saveState(){ try { localStorage.setItem(STORE_KEY, snapshot()); } catch (e) {} }
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    mode = data.mode === 'bingo' ? 'bingo' : 'full';
+    bingoN = Math.min(15, Math.max(8, Number(data.bingoN) || 8));
+    for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) board[r][c].tile = data.tiles[r][c];
+    rack = data.rack.map(t => ({ ...t, uid: uidCounter++ }));
+  } catch (e) { board = E.emptyBoard(); rack = []; }
+}
+function commitChange(){ saveState(); renderAll(); }
+function undo(){
+  if (!history.length) return showMsg('boardMsg', 'ยังไม่มีการเปลี่ยนแปลงให้ย้อนกลับ', 'ok');
+  restore(history.pop());
+  showMsg('boardMsg', 'ย้อนกลับแล้ว', 'ok');
+}
+
+/* ---------- helpers ---------- */
+function showMsg(id, text, kind){
+  const el = document.getElementById(id);
+  el.innerHTML = '';
+  if (!text) return;
+  const d = document.createElement('div');
+  d.className = 'msg ' + (kind === 'err' ? 'err' : 'ok');
+  d.textContent = text;
+  el.appendChild(d);
+}
+function tilePoints(kind, face){ return kind === 'digit' ? E.NUM_INFO[Number(face)].points : E.OP_INFO[face].points; }
+function rackTileLabel(t){
+  if (t.kind === 'digit') return String(t.face);
+  if (t.kind === 'op') return t.face;
+  if (t.kind === 'dual') return E.DUAL_INFO[t.dual].label;
+  return '␣';
+}
+function rackTilePoints(t){
+  if (t.kind === 'digit') return E.NUM_INFO[t.face].points;
+  if (t.kind === 'op') return E.OP_INFO[t.face].points;
+  if (t.kind === 'dual') return E.DUAL_INFO[t.dual].points;
+  return 0;
+}
+function bonusClass(b){ return b && b !== 'none' ? 'bonus-' + b : ''; }
+function makeBtn(label, cls, onClick){
+  const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onclick = onClick; return b;
+}
+
+/* ---------- rendering ---------- */
+function cellElement(r, c){
+  const cell = board[r][c];
+  const pv = preview ? preview.placements.find(p => p.r === r && p.c === c) : null;
+  const div = document.createElement('div');
+  const isSel = selected && selected.r === r && selected.c === c;
+  div.className = 'cell ' + (cell.tile ? 'tile' : bonusClass(cell.bonus))
+    + (pv ? ' preview-new' : '') + (isSel ? ' selected' : '');
+  if (pv) div.textContent = pv.face;
+  else if (cell.tile){
+    div.textContent = cell.tile.face;
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = cell.tile.points;
+    div.appendChild(lbl);
+  }
+  div.setAttribute('role', 'button');
+  div.tabIndex = 0;
+  div.setAttribute('aria-label', `แถว ${r + 1} คอลัมน์ ${c + 1}`);
+  div.onclick = () => { selected = { r, c }; renderAll(); };
+  return div;
+}
+
+function renderBoard(){
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) el.appendChild(cellElement(r, c));
+}
+
+function renderStrip(){
+  const el = document.getElementById('strip');
+  el.innerHTML = '';
+  el.style.gridTemplateColumns = `repeat(${bingoN}, 1fr)`;
+  for (const { r, c } of stripCells()) el.appendChild(cellElement(r, c));
+  const empties = stripCells().filter(({ r, c }) => !board[r][c].tile).length;
+  document.getElementById('stripInfo').textContent = `ช่องว่าง ${empties} • เบี้ยในมือ ${rack.length}`;
+}
+
+function renderModeUI(){
+  document.getElementById('modeFull').classList.toggle('active', mode === 'full');
+  document.getElementById('modeBingo').classList.toggle('active', mode === 'bingo');
+  document.getElementById('fullArea').style.display = mode === 'full' ? '' : 'none';
+  document.getElementById('bingoArea').style.display = mode === 'bingo' ? '' : 'none';
+  document.getElementById('opCard').style.display = mode === 'full' ? '' : 'none';
+  document.getElementById('checkBtn').style.display = mode === 'full' ? '' : 'none';
+  document.querySelectorAll('#bingoN button').forEach(b => b.classList.toggle('active', Number(b.textContent) === bingoN));
+  document.getElementById('boardTitle').textContent = mode === 'full' ? 'กระดาน' : `บิงโก ${bingoN} ตัว`;
+}
+
+function renderCellEditor(){
+  const card = document.getElementById('cellEditorCard');
+  const box = document.getElementById('cellEditor');
+  if (!selected){ card.style.display = 'none'; return; }
+  const { r, c } = selected;
+  const inStrip = mode === 'bingo' && r === STRIP_ROW && c >= stripStart(bingoN) && c < stripStart(bingoN) + bingoN;
+  if (mode === 'bingo' && !inStrip){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  document.getElementById('cellCoordLabel').textContent = `แถว ${r + 1} คอลัมน์ ${c + 1}`;
+  const cell = board[r][c];
+  box.innerHTML = '';
+  if (cell.tile){
+    const p = document.createElement('p');
+    p.innerHTML = `เบี้ยปัจจุบัน: <b style="font-family:'Space Mono'; font-size:18px;"></b> (${cell.tile.points} แต้ม)`;
+    p.querySelector('b').textContent = cell.tile.face;
+    box.appendChild(p);
+    box.appendChild(makeBtn('ลบเบี้ยนี้ออกจากกระดาน', 'btn danger', () => { pushHistory(); board[r][c].tile = null; commitChange(); }));
+    box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
+    return;
+  }
+  if (inStrip){
+    const p = document.createElement('p');
+    p.className = 'hint'; p.textContent = 'เลือกเบี้ยที่อยู่บนกระดานแล้วในช่องนี้';
+    box.appendChild(p);
+    const grid = document.createElement('div'); grid.className = 'tile-picker';
+    const add = (label, key, make) => {
+      const rem = E.remainingFor(board, rack, key);
+      const b = document.createElement('button'); b.className = 'tp-btn'; b.textContent = label;
+      b.disabled = rem <= 0;
+      b.onclick = () => {
+        pushHistory();
+        const t = make();
+        board[r][c].tile = { kind: t.kind, face: String(t.face), points: tilePoints(t.kind, t.face), origin: t.kind + ':' + t.face };
+        commitChange();
+      };
+      const cnt = document.createElement('span'); cnt.className = 'cnt'; cnt.textContent = Math.max(rem, 0); b.appendChild(cnt);
+      grid.appendChild(b);
+    };
+    for (let n = 0; n <= 20; n++) add(n, 'digit:' + n, () => ({ kind: 'digit', face: n }));
+    for (const s of ['+','-','×','÷','=']) add(s, 'op:' + s, () => ({ kind: 'op', face: s }));
+    box.appendChild(grid);
+    box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
+    return;
+  }
+  const p = document.createElement('p');
+  p.className = 'hint'; p.textContent = 'ประเภทช่องพิเศษ (แก้ให้ตรงกับกระดานจริงได้)';
+  box.appendChild(p);
+  const row = document.createElement('div'); row.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+  for (const [v, label] of [['none','ปกติ'],['dl','×2 เบี้ย'],['tl','×3 เบี้ย'],['dw','×2 สมการ'],['tw','×3 สมการ'],['star','ดาว']]){
+    row.appendChild(makeBtn(label, cell.bonus === v ? 'active' : '', () => { board[r][c].bonus = v; commitChange(); }));
+  }
+  box.appendChild(row);
+  box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
+}
+
+function renderRack(){
+  const box = document.getElementById('rackTiles');
+  box.innerHTML = '';
+  document.getElementById('rackCountLabel').textContent = rack.length + '/8';
+  for (const t of rack){
+    const div = document.createElement('div');
+    div.className = 'rack-tile';
+    div.textContent = rackTileLabel(t);
+    const pt = document.createElement('span'); pt.className = 'pt'; pt.textContent = rackTilePoints(t); div.appendChild(pt);
+    const rm = document.createElement('span'); rm.className = 'rm'; rm.textContent = '×'; rm.title = 'เอาออก';
+    rm.onclick = () => { pushHistory(); rack = rack.filter(x => x.uid !== t.uid); commitChange(); };
+    div.appendChild(rm);
+    box.appendChild(div);
+  }
+}
+
+function renderPicker(){
+  const box = document.getElementById('tilePicker');
+  box.innerHTML = '';
+  const full = rack.length >= 8;
+  const add = (label, key, pts, make) => {
+    const rem = E.remainingFor(board, rack, key);
+    const b = document.createElement('button'); b.className = 'tp-btn'; b.textContent = label;
+    b.disabled = full || rem <= 0;
+    b.title = pts + ' แต้ม';
+    b.onclick = () => { pushHistory(); rack.push({ ...make(), uid: uidCounter++ }); commitChange(); };
+    const cnt = document.createElement('span'); cnt.className = 'cnt'; cnt.textContent = Math.max(rem, 0); b.appendChild(cnt);
+    box.appendChild(b);
+  };
+  for (let n = 0; n <= 20; n++) add(n, 'digit:' + n, E.NUM_INFO[n].points, () => ({ kind: 'digit', face: n }));
+  for (const s of ['+','-','×','÷','=']) add(s, 'op:' + s, E.OP_INFO[s].points, () => ({ kind: 'op', face: s }));
+  for (const d of ['pm','md']) add(E.DUAL_INFO[d].label, 'dual:' + d, E.DUAL_INFO[d].points, () => ({ kind: 'dual', dual: d }));
+  add('␣', 'blank', 0, () => ({ kind: 'blank' }));
+}
+
+function renderResults(){
+  const box = document.getElementById('resultsBox');
+  if (!results.length){ box.innerHTML = '<p class="hint">ยังไม่มีผลลัพธ์</p>'; return; }
+  box.innerHTML = '';
+  results.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.className = 'result' + (preview === r ? ' active' : '');
+    row.innerHTML = `<div class="rank">#${i + 1}</div><div class="score"></div><div><div class="eq"></div><div class="meta"></div></div>`;
+    row.querySelector('.score').textContent = r.score;
+    row.querySelector('.eq').textContent = r.display;
+    if (r.bingo){ const b = document.createElement('span'); b.className = 'bingo'; b.textContent = 'บิงโก +40'; row.querySelector('.eq').appendChild(b); }
+    row.querySelector('.meta').textContent = (r.dir === 'H' ? 'แนวนอน' : 'แนวตั้ง') + ` • เริ่ม แถว ${r.span.r0 + 1} คอลัมน์ ${r.span.c0 + 1}`
+      + (r.crossDisplays.length ? ' • สมการไขว้: ' + r.crossDisplays.join(', ') : '');
+    row.onclick = () => { preview = r; renderAll(); };
+    box.appendChild(row);
+  });
+  if (preview){
+    const btn = document.createElement('button');
+    btn.className = 'btn primary'; btn.id = 'confirmBtn'; btn.textContent = '✅ ยืนยันวางเบี้ยชุดนี้';
+    btn.style.cssText = 'width:100%; margin-top:12px; padding:12px;';
+    btn.onclick = commitPreview;
+    box.appendChild(btn);
+  }
+}
+
+function renderAll(){
+  renderModeUI();
+  if (mode === 'full') renderBoard(); else renderStrip();
+  renderCellEditor(); renderRack(); renderPicker(); renderResults();
+}
+
+/* ---------- actions ---------- */
+function commitPreview(){
+  if (!preview) return;
+  pushHistory();
+  for (const p of preview.placements){
+    board[p.r][p.c].tile = { kind: p.kind, face: p.face, points: p.points, origin: p.origin };
+    rack = rack.filter(t => t.uid !== p.rackUid);
+  }
+  preview = null; results = [];
+  document.getElementById('solveStatus').textContent = 'วางเบี้ยแล้ว';
+  commitChange();
+}
+
+function applyOpponentMove(){
+  const text = document.getElementById('opText').value;
+  const dir = document.getElementById('opDir').value;
+  const start = selected || { r: E.CENTER, c: E.CENTER };
+  const out = E.applyTypedMove(board, rack, start, dir, text);
+  if (out.error) return showMsg('opMsg', out.error, 'err');
+  const problems = E.checkBoard(out.board, rack);
+  if (problems.length) return showMsg('opMsg', 'ตานี้ทำให้กระดานผิดกติกา: ' + problems.map(p => p.reason).join(', '), 'err');
+  pushHistory();
+  for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) board[r][c].tile = out.board[r][c].tile;
+  document.getElementById('opText').value = '';
+  showMsg('opMsg', `ใส่ตาแล้ว ${out.placements.length} ตัว`, 'ok');
+  preview = null; results = [];
+  commitChange();
+}
+
+function checkBoardNow(){
+  const problems = E.checkBoard(board, rack);
+  if (!problems.length) return showMsg('boardMsg', 'กระดานถูกต้องตามกติกาและจำนวนเบี้ย', 'ok');
+  const lines = problems.map(p => p.start
+    ? `แถว ${p.start.r + 1}-${p.end.r + 1}, คอลัมน์ ${p.start.c + 1}-${p.end.c + 1}: ${p.reason}`
+    : `${p.reason} (${p.tileKey})`);
+  showMsg('boardMsg', 'พบปัญหา:\n' + lines.join('\n'), 'err');
+}
+
+function setMode(next){
+  if (next === mode) return;
+  const hasTiles = board.some(row => row.some(c => c.tile));
+  if (hasTiles && !confirm('เปลี่ยนโหมดจะล้างกระดานปัจจุบัน ต้องการทำต่อหรือไม่?')) return;
+  pushHistory();
+  mode = next;
+  board = E.emptyBoard();
+  selected = null; preview = null; results = [];
+  if (next === 'bingo') rack = rack.slice(0, 8);
+  commitChange();
+}
+
+function setBingoN(n){
+  if (n === bingoN) return;
+  const hasTiles = board.some(row => row.some(c => c.tile));
+  if (hasTiles && !confirm('เปลี่ยนโหมดหรือจำนวนช่องจะล้างกระดานปัจจุบัน ต้องการทำต่อหรือไม่?')) return;
+  pushHistory();
+  mode = 'bingo';
+  bingoN = n;
+  board = E.emptyBoard();
+  selected = null; preview = null; results = [];
+  commitChange();
+}
+
+function runBingo(){
+  const status = document.getElementById('solveStatus');
+  const cells = stripCells();
+  const empties = cells.filter(({ r, c }) => !board[r][c].tile);
+  const boardCols = cells.filter(({ r, c }) => board[r][c].tile).map(({ c }) => c);
+  if (!rack.length) { status.textContent = 'กรุณาเพิ่มเบี้ยในมือก่อน'; return; }
+  if (empties.length === 0) { status.textContent = 'ไม่มีช่องว่างให้วาง'; return; }
+  const flexible = bingoN === 15;
+  if (!flexible && rack.length < empties.length) {
+    status.textContent = `ช่องว่าง ${empties.length} ช่อง แต่มีเบี้ยในมือแค่ ${rack.length} ตัว`;
+    return;
+  }
+  status.innerHTML = '<span class="spinner" style="display:inline-block; vertical-align:middle;"></span> กำลังคำนวณบิงโก...';
+  preview = null;
+  setTimeout(() => {
+    const t0 = performance.now();
+    const start = stripStart(bingoN);
+    const end = start + bingoN - 1;
+    const opts = { maxResults: 200, maxCombos: 600000, timeBudgetMs: 15000 };
+    if (flexible) opts.onlyRow = STRIP_ROW; else opts.onlySpan = { r: STRIP_ROW, c0: start, c1: end };
+    const res = E.solve(board, rack, opts);
+    const needAll = rack.length;
+    const minBoard = boardCols.length ? Math.min(...boardCols) : null;
+    const maxBoard = boardCols.length ? Math.max(...boardCols) : null;
+    const found = res.results.filter(r => r.dir === 'H' && r.span.r0 === STRIP_ROW && r.span.r1 === STRIP_ROW
+      && r.span.c0 >= start && r.span.c1 <= end
+      && (minBoard === null || (r.span.c0 <= minBoard && r.span.c1 >= maxBoard))
+      && r.placements.length === (flexible ? needAll : empties.length));
+    results = found.slice(0, 20);
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    const limit = res.timedOut ? ' • ถูกจำกัดเวลา' : '';
+    status.textContent = results.length
+      ? `พบ ${results.length} ตำแหน่ง (${secs} วินาที)` + limit
+      : `ไม่พบการเรียงที่ใช้เบี้ยในมือทั้งหมด (${secs} วินาที)` + limit;
+    renderAll();
+  }, 30);
+}
+
+function runSolve(){
+  if (mode === 'bingo') return runBingo();
+  const status = document.getElementById('solveStatus');
+  if (!rack.length){ status.textContent = 'กรุณาเพิ่มเบี้ยในมือก่อน'; return; }
+  status.innerHTML = '<span class="spinner" style="display:inline-block; vertical-align:middle;"></span> กำลังคำนวณ...';
+  preview = null;
+  const deep = document.getElementById('deepSearch').checked;
+  const opts = deep ? { maxResults: 25, maxCombos: 600000, timeBudgetMs: 15000 } : { maxResults: 20, maxCombos: 120000, timeBudgetMs: 6000 };
+  setTimeout(() => {
+    const t0 = performance.now();
+    const res = E.solve(board, rack, opts);
+    results = res.results;
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    status.textContent = `ตรวจ ${res.exploredCombos.toLocaleString()} ความเป็นไปได้ ใน ${secs} วินาที` + (res.timedOut ? ' (ถูกจำกัดเวลา ลองติ๊กค้นหาละเอียด)' : '');
+    renderAll();
+  }, 30);
+}
+
+/* ---------- wiring ---------- */
+document.getElementById('modeFull').onclick = () => setMode('full');
+document.getElementById('modeBingo').onclick = () => setMode('bingo');
+document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.textContent)));
+document.getElementById('undoBtn').onclick = undo;
+document.getElementById('checkBtn').onclick = checkBoardNow;
+document.getElementById('resetBtn').onclick = () => {
+  if (!confirm('เริ่มใหม่? กระดานและเบี้ยในมือจะถูกล้าง')) return;
+  pushHistory(); board = E.emptyBoard(); rack = []; selected = null; preview = null; results = [];
+  commitChange();
+};
+document.getElementById('clearRackBtn').onclick = () => { pushHistory(); rack = []; commitChange(); };
+document.getElementById('opApply').onclick = applyOpponentMove;
+document.getElementById('opText').addEventListener('keydown', e => { if (e.key === 'Enter') applyOpponentMove(); });
+document.getElementById('solveBtn').onclick = runSolve;
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.target.matches('input')) { e.preventDefault(); undo(); }
+});
+
+loadState();
+renderAll();
+
+</script>
+</body>
+</html>
