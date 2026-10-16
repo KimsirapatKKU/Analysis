@@ -117,8 +117,8 @@
   .cell.bonus-dl::after,.cell.bonus-tl::after,.cell.bonus-dw::after,.cell.bonus-tw::after{
     font-family:'Sarabun',sans-serif; font-weight:700; font-size:.5em; letter-spacing:.2px; opacity:.85;
   }
-  .cell.bonus-dl::after{content:"×2E";}
-  .cell.bonus-tl::after{content:"×3E";}
+  .cell.bonus-dl::after{content:"×2P";}
+  .cell.bonus-tl::after{content:"×3P";}
   .cell.bonus-dw::after{content:"×2L";}
   .cell.bonus-tw::after{content:"×3L";}
   .cell .lbl{position:absolute; bottom:1px; right:2px; font-size:.5em; color:var(--ink-soft); font-family:'Sarabun'; font-weight:700;}
@@ -294,7 +294,7 @@
 <div class="wrap">
   <header>
     <span class="brand-badge">A-MATH · Best Play</span>
-    <h1 id="titleRefresh" role="button" tabindex="0" title="รีเฟรชหน้า (เบี้ยบนกระดานและในมือยังอยู่)" style="cursor:pointer;">Best Play Analysis</h1>
+    <h1>เอแม็ท — ตัวช่วยหาเบี้ยที่ดีที่สุด</h1>
     <p>เลือกโหมดกระดานเต็มเพื่อวางเกมทั้งกระดาน หรือโหมดบิงโกเพื่อหาการเรียงที่ใช้เบี้ยทั้งหมดในแถวเดียว เกมจะถูกเก็บไว้ในเครื่องนี้</p>
   </header>
 
@@ -322,7 +322,7 @@
           <p class="hint">เลือกจำนวนเบี้ยที่จะบิงโก (8-15 ตัว) ระบบจะสร้างแถว 1 แถวตามจำนวนที่เลือก</p>
           <div class="bingo-n" id="bingoN">
             <button>8</button><button>9</button><button>10</button><button>11</button>
-            <button>12</button><button>13</button><button>14</button><button>15</button>
+            <button>12</button><button>13</button><button>14</button><button data-n="15">15 ★</button>
           </div>
           <div style="margin-top:16px;"><div id="strip"></div></div>
           <div class="stripinfo" id="stripInfo"></div>
@@ -350,16 +350,13 @@
       </div>
 
       <div class="card" id="opCard">
-        <h2>พิมพ์วางเบี้ยบนกระดาน</h2>
+        <h2>ตาของคู่แข่ง</h2>
         <p class="hint">เลือกช่องเริ่มต้นบนกระดาน เลือกทิศทาง แล้วพิมพ์สมการ เช่น <code>3+4=7</code> หรือ <code>[12]-[2]=10</code> (เลข 10-20 ใส่ในวงเล็บ) ใช้ <code>*</code> แทน × และ <code>/</code> แทน ÷</p>
         <div class="field">
           <select id="opDir"><option value="H">แนวนอน</option><option value="V">แนวตั้ง</option></select>
           <input type="text" id="opText" placeholder="เช่น 3+4=7" autocomplete="off">
           <button class="btn primary" id="opApply">ใส่ตา</button>
         </div>
-        <label class="hint" style="display:flex; align-items:center; gap:6px; margin-top:10px;">
-          <input type="checkbox" id="opConsume"> ตาของฉัน (หักเบี้ยออกจากมือด้วย)
-        </label>
         <div id="opMsg"></div>
       </div>
 
@@ -509,7 +506,7 @@ function renderModeUI(){
   document.getElementById('bingoArea').style.display = mode === 'bingo' ? '' : 'none';
   document.getElementById('opCard').style.display = mode === 'full' ? '' : 'none';
   document.getElementById('checkBtn').style.display = mode === 'full' ? '' : 'none';
-  document.querySelectorAll('#bingoN button').forEach(b => b.classList.toggle('active', Number(b.textContent) === bingoN));
+  document.querySelectorAll('#bingoN button').forEach(b => b.classList.toggle('active', Number(b.dataset.n || b.textContent) === bingoN));
   document.getElementById('boardTitle').textContent = mode === 'full' ? 'กระดาน' : `บิงโก ${bingoN} ตัว`;
 }
 
@@ -520,7 +517,6 @@ function renderCellEditor(){
   const { r, c } = selected;
   const inStrip = mode === 'bingo' && r === STRIP_ROW && c >= stripStart(bingoN) && c < stripStart(bingoN) + bingoN;
   if (mode === 'bingo' && !inStrip){ card.style.display = 'none'; return; }
-  const canPlace = mode === 'full' || inStrip;
   card.style.display = 'block';
   document.getElementById('cellCoordLabel').textContent = `แถว ${r + 1} คอลัมน์ ${c + 1}`;
   const cell = board[r][c];
@@ -534,7 +530,7 @@ function renderCellEditor(){
     box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
     return;
   }
-  if (canPlace){
+  if (inStrip){
     const p = document.createElement('p');
     p.className = 'hint'; p.textContent = 'เลือกเบี้ยที่อยู่บนกระดานแล้วในช่องนี้';
     box.appendChild(p);
@@ -558,6 +554,14 @@ function renderCellEditor(){
     box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
     return;
   }
+  const p = document.createElement('p');
+  p.className = 'hint'; p.textContent = 'ประเภทช่องพิเศษ (แก้ให้ตรงกับกระดานจริงได้)';
+  box.appendChild(p);
+  const row = document.createElement('div'); row.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+  for (const [v, label] of [['none','ปกติ'],['dl','×2 เบี้ย'],['tl','×3 เบี้ย'],['dw','×2 สมการ'],['tw','×3 สมการ'],['star','ดาว']]){
+    row.appendChild(makeBtn(label, cell.bonus === v ? 'active' : '', () => { board[r][c].bonus = v; commitChange(); }));
+  }
+  box.appendChild(row);
   box.appendChild(makeBtn('ปิด', 'btn', () => { selected = null; renderAll(); }));
 }
 
@@ -640,46 +644,18 @@ function commitPreview(){
   commitChange();
 }
 
-const DUAL_SYMBOLS = { pm: ['+', '-'], md: ['×', '÷'] };
-
-function takeFromRack(placements){
-  const hand = rack.slice();
-  const used = [];
-  for (const p of placements){
-    let idx = -1;
-    if (p.kind === 'digit') idx = hand.findIndex(t => t.kind === 'digit' && t.face === Number(p.face));
-    else {
-      idx = hand.findIndex(t => t.kind === 'op' && t.face === p.face);
-      if (idx < 0) idx = hand.findIndex(t => t.kind === 'dual' && DUAL_SYMBOLS[t.dual].includes(p.face));
-    }
-    if (idx < 0) idx = hand.findIndex(t => t.kind === 'blank');
-    if (idx < 0) return { error: `ไม่มีเบี้ย "${p.face}" ในมือ` };
-    used.push(hand[idx].uid);
-    hand.splice(idx, 1);
-  }
-  return { rack: rack.filter(t => !used.includes(t.uid)) };
-}
-
 function applyOpponentMove(){
   const text = document.getElementById('opText').value;
   const dir = document.getElementById('opDir').value;
-  const consume = document.getElementById('opConsume').checked;
   const start = selected || { r: E.CENTER, c: E.CENTER };
   const out = E.applyTypedMove(board, rack, start, dir, text);
   if (out.error) return showMsg('opMsg', out.error, 'err');
-  const problems = E.checkBoard(out.board, consume ? [] : rack);
+  const problems = E.checkBoard(out.board, rack);
   if (problems.length) return showMsg('opMsg', 'ตานี้ทำให้กระดานผิดกติกา: ' + problems.map(p => p.reason).join(', '), 'err');
-  let nextRack = rack;
-  if (consume){
-    const taken = takeFromRack(out.placements);
-    if (taken.error) return showMsg('opMsg', taken.error, 'err');
-    nextRack = taken.rack;
-  }
   pushHistory();
   for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) board[r][c].tile = out.board[r][c].tile;
-  rack = nextRack;
   document.getElementById('opText').value = '';
-  showMsg('opMsg', `ใส่ตาแล้ว ${out.placements.length} ตัว` + (consume ? ' และหักออกจากมือแล้ว' : ''), 'ok');
+  showMsg('opMsg', `ใส่ตาแล้ว ${out.placements.length} ตัว`, 'ok');
   preview = null; results = [];
   commitChange();
 }
@@ -774,12 +750,9 @@ function runSolve(){
 }
 
 /* ---------- wiring ---------- */
-function refreshKeepingTiles(){ saveState(); location.reload(); }
-document.getElementById('titleRefresh').onclick = refreshKeepingTiles;
-document.getElementById('titleRefresh').addEventListener('keydown', e => { if (e.key === 'Enter') refreshKeepingTiles(); });
 document.getElementById('modeFull').onclick = () => setMode('full');
 document.getElementById('modeBingo').onclick = () => setMode('bingo');
-document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.textContent)));
+document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.dataset.n || b.textContent)));
 document.getElementById('undoBtn').onclick = undo;
 document.getElementById('checkBtn').onclick = checkBoardNow;
 document.getElementById('resetBtn').onclick = () => {
