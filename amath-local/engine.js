@@ -84,11 +84,11 @@ function validateEquation(cellSeq){
     if(!expectNum && tokens[i].type!=='op') return {valid:false, reason:'รูปแบบสมการไม่ถูกต้อง'};
   }
   const eqPositions = tokens.map((t,i)=> (t.type==='op'&&t.sym==='=') ? i : -1).filter(i=>i>=0);
-  if(eqPositions.length !== 1) return {valid:false, reason:'ต้องมีเครื่องหมาย = พอดี 1 ตัว'};
-  const eqPos = eqPositions[0];
-  if(eqPos===0 || eqPos===tokens.length-1) return {valid:false, reason:'สมการไม่สมบูรณ์'};
-  const left = tokens.slice(0, eqPos);
-  const right = tokens.slice(eqPos+1);
+  if(eqPositions.length < 1) return {valid:false, reason:'ต้องมีเครื่องหมาย = อย่างน้อย 1 ตัว'};
+  if(eqPositions[0]===0 || eqPositions[eqPositions.length-1]===tokens.length-1) return {valid:false, reason:'สมการไม่สมบูรณ์'};
+  const bounds = [-1, ...eqPositions, tokens.length];
+  const segments = [];
+  for(let j=0;j<bounds.length-1;j++) segments.push(tokens.slice(bounds[j]+1, bounds[j+1]));
   function evalSideClean(side){
     const groups = [];
     let curFactors = [side[0].value];
@@ -115,13 +115,13 @@ function validateEquation(cellSeq){
     }
     return total;
   }
-  let leftVal, rightVal;
-  try{ leftVal = evalSideClean(left); rightVal = evalSideClean(right); }
+  let values;
+  try{ values = segments.map(evalSideClean); }
   catch(e){
     if(e.message==='DIV_ZERO') return {valid:false, reason:'หารด้วยศูนย์ไม่ได้'};
     return {valid:false, reason:'สมการไม่ถูกต้อง'};
   }
-  if(!fEq(leftVal, rightVal)) return {valid:false, reason:'สมการไม่เป็นจริง'};
+  for(let j=1;j<values.length;j++) if(!fEq(values[0], values[j])) return {valid:false, reason:'สมการไม่เป็นจริง'};
   const display = cellSeq.map(c=>c.face).join('');
   return {valid:true, display};
 }
@@ -224,95 +224,280 @@ function solve(board, rack, options={}){
   const timeBudgetMs = options.timeBudgetMs || 6000;
   const startTime = Date.now();
   const boardEmpty = isBoardEmpty(board);
-  const results=[]; let exploredCombos=0; let timedOut=false;
+  const results=[]; let exploredCombos=0; let timedOut=false; let nodeCount=0;
 
   const onlySpan = options.onlySpan || null; // {r, c0, c1}: horizontal only, exact span (bingo line)
   const onlyRow = options.onlyRow;           // horizontal only, any span length, on this row
+
+  /* ---- 1) unique tile options (key = kind:face:points), computed once ---- */
+  const uOpt=[]; const uIndex=new Map();
+  const rackEntries = rack.map(t=> expandTileOptions(t).map(opt=>{
+    const key = opt.kind+':'+opt.face+':'+opt.points;
+    let u = uIndex.get(key);
+    if(u===undefined){
+      u = uOpt.length; uIndex.set(key,u);
+      uOpt.push({kind:opt.kind, face:opt.face, points:opt.points, isDigit:opt.kind==='digit', flen:String(opt.face).length});
+    }
+    return {u, origin:opt.origin};
+  }));
+  const U = uOpt.length;
+  let rackHasEq=false;
+  for(const o of uOpt) if(!o.isDigit && o.face==='=') rackHasEq=true;
+
+  /* ---- 2) top-K threshold tracking (for branch and bound) ---- */
+  const keyBest=new Map(); const topList=[];
+  let T=-Infinity, topFull=false;
+  function record(key, score){
+    const prev = keyBest.get(key);
+    keyBest.set(key, score);
+    let idx=-1;
+    if(prev!==undefined){ for(let i=0;i<topList.length;i++) if(topList[i].key===key){ idx=i; break; } }
+    if(idx>=0) topList[idx].score=score;
+    else if(topList.length<maxResults) topList.push({key, score});
+    else {
+      let mi=0; for(let i=1;i<topList.length;i++) if(topList[i].score<topList[mi].score) mi=i;
+      if(score>topList[mi].score) topList[mi]={key, score};
+    }
+    if(topList.length>=maxResults){
+      topFull=true; let m=Infinity; for(const x of topList) if(x.score<m) m=x.score; T=m;
+    }
+  }
+
+  /* ---- 3) cross-equation cache: per cell and direction, per tile option ---- */
+  const crossCaches = {H:new Array(SIZE*SIZE), V:new Array(SIZE*SIZE)};
+  function getCross(dir, r, c){
+    const cache=crossCaches[dir]; const key=r*SIZE+c;
+    let v=cache[key];
+    if(v!==undefined) return v;
+    const run=perpendicularRun(board, dir, r, c);
+    if(!run){ cache[key]=null; return null; }
+    v=new Array(U);
+    for(let u=0;u<U;u++){
+      const o=uOpt[u];
+      const info=run.map(rc=>cellInfoFromCoord(board, rc, !!rc.isNewCenter, o.face, o.kind, o.points));
+      const rv=validateEquation(info.map(x=>({kind:x.kind, face:x.face})));
+      v[u] = rv.valid ? {score:scoreSpan(info), display:rv.display} : null;
+    }
+    cache[key]=v; return v;
+  }
+
+  /* ---- 4) build one plan per candidate span, with a score upper bound ---- */
+  const plans=[];
   for(const dir of ['H','V']){
     if((onlySpan || onlyRow!==undefined) && dir!=='H') continue;
     for(let idx=0; idx<SIZE; idx++){
-      if(timedOut) break;
       if(onlySpan && idx!==onlySpan.r) continue;
       if(onlyRow!==undefined && idx!==onlyRow) continue;
       const spans = findSpans(board, dir, idx, boardEmpty);
       for(const span of spans){
-        if(timedOut) break;
+        const coords = span.coords;
         if(onlySpan){
-          const first = span.coords[0], last = span.coords[span.coords.length-1];
+          const first = coords[0], last = coords[coords.length-1];
           if(first.c!==onlySpan.c0 || last.c!==onlySpan.c1) continue;
         }
-        const coords = span.coords;
-        const emptyPositions=[];
-        coords.forEach((co,pos)=>{ if(!board[co.r][co.c].tile) emptyPositions.push(pos); });
-        const k = emptyPositions.length;
+        const L = coords.length;
+        const empty=new Array(L), kinds=new Array(L), faces=new Array(L);
+        let k=0, fixedEq=0, F=0, M=1;
+        for(let i=0;i<L;i++){
+          const co=coords[i]; const cell=board[co.r][co.c]; const t=cell.tile;
+          if(t){
+            empty[i]=false; kinds[i]=t.kind; faces[i]=t.face; F+=t.points;
+            if(t.kind!=='digit' && t.face==='=') fixedEq++;
+          } else {
+            empty[i]=true; k++;
+            if(cell.bonus==='tw') M*=3; if(cell.bonus==='dw') M*=2;
+          }
+        }
         if(k===0 || k>rack.length) continue;
-        const usedRackIdx = new Set();
-        const assignment = new Array(k);
-
-        function tryFinish(){
-          exploredCombos++;
-          if(exploredCombos>comboCap){ timedOut=true; return; }
-          if((exploredCombos & 1023)===0 && Date.now()-startTime>timeBudgetMs){ timedOut=true; return; }
-          const cellsInfo = coords.map((co,pos)=>{
-            const emptyIdx = emptyPositions.indexOf(pos);
-            if(emptyIdx>=0){
-              const a = assignment[emptyIdx];
-              return {kind:a.kind, face:a.face, points:a.points, isNew:true, bonus:board[co.r][co.c].bonus, coord:co, rackUid:a.rackUid, origin:a.origin};
-            } else {
-              const t = board[co.r][co.c].tile;
-              return {kind:t.kind, face:t.face, points:t.points, isNew:false, bonus:board[co.r][co.c].bonus, coord:co};
-            }
-          });
-          const mainSeq = cellsInfo.map(ci=>({kind:ci.kind, face:ci.face}));
-          const mainValid = validateEquation(mainSeq);
-          if(!mainValid.valid) return;
-          let crossTotal=0; const crossDisplays=[];
-          for(const ci of cellsInfo){
-            if(!ci.isNew) continue;
-            const run = perpendicularRun(board, dir, ci.coord.r, ci.coord.c);
-            if(!run) continue;
-            const runCellsInfo = run.map(rc=>cellInfoFromCoord(board, rc, !!rc.isNewCenter, ci.face, ci.kind, ci.points));
-            const runSeq = runCellsInfo.map(x=>({kind:x.kind, face:x.face}));
-            const rv = validateEquation(runSeq);
-            if(!rv.valid){ crossTotal=null; break; }
-            crossTotal += scoreSpan(runCellsInfo);
-            crossDisplays.push(rv.display);
+        if(fixedEq===0 && !rackHasEq) continue;
+        const cx=new Array(L).fill(null), pm=new Array(L).fill(1), suf=new Array(L+1).fill(0);
+        let feasible=true;
+        for(let i=L-1;i>=0;i--){
+          suf[i]=suf[i+1];
+          if(!empty[i]) continue;
+          const co=coords[i];
+          cx[i]=getCross(dir, co.r, co.c);
+          pm[i]=pieceMultiplier(board[co.r][co.c].bonus);
+          let best=-1;
+          for(let u=0;u<U;u++){
+            if(cx[i] && cx[i][u]===null) continue;
+            const val=M*uOpt[u].points*pm[i] + (cx[i]?cx[i][u].score:0);
+            if(val>best) best=val;
           }
-          if(crossTotal===null) return;
-          const mainScore = scoreSpan(cellsInfo);
-          let total = mainScore + crossTotal;
-          const bingo = (k===8);
-          if(bingo) total += 40;
-          results.push({
-            dir, score: total, mainScore, crossScore:crossTotal, bingo,
-            display: mainValid.display, crossDisplays,
-            placements: cellsInfo.filter(ci=>ci.isNew).map(ci=>({r:ci.coord.r,c:ci.coord.c,kind:ci.kind,face:ci.face,points:ci.points,bonus:ci.bonus,rackUid:ci.rackUid,origin:ci.origin})),
-            span:{r0:coords[0].r,c0:coords[0].c,r1:coords[coords.length-1].r,c1:coords[coords.length-1].c}
-          });
+          if(best<0){ feasible=false; break; }
+          suf[i]+=best;
         }
-        function rec(posIdx){
-          if(timedOut) return;
-          if(posIdx===k){ tryFinish(); return; }
-          const triedFaces = new Set();
-          for(let ri=0; ri<rack.length; ri++){
-            if(usedRackIdx.has(ri)) continue;
-            const opts = expandTileOptions(rack[ri]);
-            for(const opt of opts){
-              const key = opt.kind+':'+opt.face+':'+opt.points;
-              if(triedFaces.has(key)) continue;
-              triedFaces.add(key);
-              assignment[posIdx] = {kind:opt.kind, face:opt.face, points:opt.points, rackUid:rack[ri].uid, origin:opt.origin};
-              usedRackIdx.add(ri);
-              rec(posIdx+1);
-              usedRackIdx.delete(ri);
-              if(timedOut) return;
-            }
-          }
-        }
-        rec(0);
+        if(!feasible) continue;
+        const bingoBonus = (k===8) ? 40 : 0;
+        plans.push({dir, coords, L, k, empty, kinds, faces, M, F, cx, pm, suf, bingoBonus,
+                    rootBound: M*F + bingoBonus + suf[0], order: plans.length});
       }
     }
   }
+  plans.sort((a,b)=> (b.rootBound-a.rootBound) || (a.order-b.order));
+
+  /* ---- 5) depth-first search with prefix pruning ---- */
+  const used=new Uint8Array(rack.length);
+  const tried=Array.from({length:SIZE},()=>new Int32Array(U));
+  const stampAt=new Int32Array(SIZE);
+  const seqKind=new Array(SIZE), seqFace=new Array(SIZE);
+  const aU=new Int32Array(SIZE), aRi=new Int32Array(SIZE), aOrigin=new Array(SIZE);
+  const memo=new Map();
+  let pL=0, pM=1, pBingo=0, pDir='H', pCoords=null, pEmpty=null, pKinds=null, pFaces=null, pCx=null, pPm=null, pSuf=null, pCanEq=null;
+  let nEq=0, nRun=0, nMulti=false, nFZ=false, nPT=0, nPF='';
+
+  // Cheap structural prefix check. Only rejects what validateEquation would reject for every completion.
+  function applyCell(i, isDigit, face, flen, eq, run, multi, fz, pt, pf){
+    if(isDigit){
+      if(pt===1){ nRun=run+1; nMulti=multi||flen>1; nFZ=fz; }
+      else { nRun=1; nMulti=flen>1; nFZ=(String(face).charCodeAt(0)===48); }
+      if(nRun>1 && (nMulti || nRun>3 || nFZ)) return false;
+      nEq=eq; nPT=1; nPF=face; return true;
+    }
+    if(i===0 && face!=='-') return false;
+    if(i===pL-1) return false;
+    if(pt===2 && !(pf==='=' && face==='-')) return false;
+    nEq = (face==='=') ? eq+1 : eq;
+    nRun=0; nMulti=false; nFZ=false; nPT=2; nPF=face; return true;
+  }
+
+  // Float pre-filter: returns true only when both sides are clearly unequal. Exact check still decides everything else.
+  let fmx=0;
+  function fev(t, a, b){
+    let total=0, cur=t[a], sign=1; fmx=Math.max(fmx, Math.abs(cur));
+    for(let j=a+1;j<b;j+=2){
+      const op=t[j], n=t[j+1];
+      if(op==='×') cur*=n;
+      else if(op==='÷'){ if(n===0) return NaN; cur/=n; }
+      else if(op==='+'){ total+=sign*cur; sign=1; cur=n; }
+      else if(op==='-'){ total+=sign*cur; sign=-1; cur=n; }
+      else return NaN;
+      fmx=Math.max(fmx, Math.abs(cur), Math.abs(total));
+    }
+    total+=sign*cur; fmx=Math.max(fmx, Math.abs(total));
+    return total;
+  }
+  function fastUnequal(L){
+    const toks=[]; let acc='';
+    for(let i=0;i<L;i++){
+      if(seqKind[i]==='digit') acc+=seqFace[i];
+      else { if(acc!==''){ toks.push(Number(acc)); acc=''; } toks.push(seqFace[i]); }
+    }
+    if(acc!=='') toks.push(Number(acc));
+    const t2=[];
+    for(let j=0;j<toks.length;j++){
+      const t=toks[j];
+      if(t==='-' && (j===0 || toks[j-1]==='=') && typeof toks[j+1]==='number'){ t2.push(-toks[j+1]); j++; }
+      else t2.push(t);
+    }
+    const eqs=[];
+    for(let j=0;j<t2.length;j++){
+      const isNum = typeof t2[j]==='number';
+      if((j%2===0)!==isNum) return false;
+      if(!isNum && t2[j]==='=') eqs.push(j);
+    }
+    if(eqs.length<1 || eqs[0]===0 || eqs[eqs.length-1]===t2.length-1) return false;
+    fmx=0;
+    const vals=[]; let a=0;
+    for(let j=0;j<=eqs.length;j++){
+      const b = j<eqs.length ? eqs[j] : t2.length;
+      const v=fev(t2,a,b);
+      if(!isFinite(v)) return false;
+      vals.push(v); a=b+1;
+    }
+    const tol=1e-9*Math.max(1,fmx);
+    for(let j=1;j<vals.length;j++) if(Math.abs(vals[j]-vals[0])>tol) return true;
+    return false;
+  }
+
+  function leaf(S, X){
+    exploredCombos++;
+    if(exploredCombos>comboCap){ timedOut=true; return; }
+    if((exploredCombos & 1023)===0 && Date.now()-startTime>timeBudgetMs){ timedOut=true; return; }
+    const mainScore = S*pM;
+    const total = mainScore + X + pBingo;
+    if(topFull && total<=T) return;
+    if(fastUnequal(pL)) return;
+    let mk=''; for(let i=0;i<pL;i++) mk += (i?',':'') + seqFace[i];
+    let display=memo.get(mk);
+    if(display===undefined){
+      const seq=new Array(pL);
+      for(let i=0;i<pL;i++) seq[i]={kind:seqKind[i], face:seqFace[i]};
+      const mv=validateEquation(seq);
+      display = mv.valid ? mv.display : null;
+      if(memo.size>200000) memo.clear();
+      memo.set(mk, display);
+    }
+    if(display===null) return;
+    const c0=pCoords[0], c1=pCoords[pL-1];
+    const key = pDir+'|'+c0.r+','+c0.c+'-'+c1.r+','+c1.c+'|'+display;
+    const prevBest=keyBest.get(key);
+    if(prevBest!==undefined && prevBest>=total) return;
+    record(key, total);
+    const crossDisplays=[]; const placements=[];
+    for(let i=0;i<pL;i++){
+      if(!pEmpty[i]) continue;
+      const co=pCoords[i]; const o=uOpt[aU[i]];
+      if(pCx[i]) crossDisplays.push(pCx[i][aU[i]].display);
+      placements.push({r:co.r, c:co.c, kind:o.kind, face:o.face, points:o.points, bonus:board[co.r][co.c].bonus, rackUid:rack[aRi[i]].uid, origin:aOrigin[i]});
+    }
+    results.push({
+      dir:pDir, score:total, mainScore, crossScore:X, bingo:(placements.length===8), display,
+      crossDisplays, placements,
+      span:{r0:c0.r, c0:c0.c, r1:c1.r, c1:c1.c}
+    });
+  }
+
+  function dfs(i, S, X, eq, run, multi, fz, pt, pf){
+    if(timedOut) return;
+    if((++nodeCount & 2047)===0 && Date.now()-startTime>timeBudgetMs){ timedOut=true; return; }
+    if(i===pL){ if(eq>=1) leaf(S, X); return; }
+    if(!pEmpty[i]){
+      const f=pFaces[i]; const dg=pKinds[i]==='digit';
+      if(!applyCell(i, dg, f, dg?String(f).length:0, eq, run, multi, fz, pt, pf)) return;
+      if(nEq===0 && !pCanEq[i+1]) return;
+      dfs(i+1, S, X, nEq, nRun, nMulti, nFZ, nPT, nPF);
+      return;
+    }
+    const stamp=++stampAt[i]; const trd=tried[i];
+    const cx=pCx[i], pmI=pPm[i], suf1=pSuf[i+1];
+    for(let ri=0; ri<rack.length; ri++){
+      if(used[ri]) continue;
+      const ents=rackEntries[ri];
+      for(let e=0;e<ents.length;e++){
+        const ent=ents[e]; const u=ent.u;
+        if(trd[u]===stamp) continue;
+        trd[u]=stamp;
+        let cs=0;
+        if(cx){ const ce=cx[u]; if(ce===null) continue; cs=ce.score; }
+        const o=uOpt[u];
+        if(!applyCell(i, o.isDigit, o.face, o.flen, eq, run, multi, fz, pt, pf)) continue;
+        if(nEq===0 && !pCanEq[i+1]) continue;
+        const nS=S+o.points*pmI, nX=X+cs;
+        if(topFull && pM*nS+nX+pBingo+suf1<=T) continue;
+        const a=nEq, b=nRun, c=nMulti, d=nFZ, g=nPT, h=nPF;
+        used[ri]=1; seqKind[i]=o.kind; seqFace[i]=o.face; aU[i]=u; aRi[i]=ri; aOrigin[i]=ent.origin;
+        dfs(i+1, nS, nX, a, b, c, d, g, h);
+        used[ri]=0;
+        if(timedOut) return;
+      }
+    }
+  }
+
+  for(const P of plans){
+    if(timedOut) break;
+    if(topFull && P.rootBound<=T) break; // plans are sorted by bound, the rest cannot enter the top list
+    pL=P.L; pM=P.M; pBingo=P.bingoBonus; pDir=P.dir; pCoords=P.coords; pEmpty=P.empty;
+    pKinds=P.kinds; pFaces=P.faces; pCx=P.cx; pPm=P.pm; pSuf=P.suf;
+    pCanEq=new Array(pL+1); pCanEq[pL]=false;
+    for(let i=pL-1;i>=0;i--){
+      pCanEq[i]=pCanEq[i+1] || (pEmpty[i] ? rackHasEq : (pKinds[i]!=='digit' && pFaces[i]==='='));
+      if(!pEmpty[i]){ seqKind[i]=pKinds[i]; seqFace[i]=pFaces[i]; }
+    }
+    used.fill(0);
+    dfs(0, P.F, 0, 0, 0, false, false, 0, '');
+  }
+
   results.sort((a,b)=>b.score-a.score);
   const dedup=[]; const seen=new Set();
   for(const r of results){
@@ -389,7 +574,9 @@ function remainingFor(boardState, rackState, key){
 
 /* ======================= TYPED MOVE PARSER ======================= */
 /* Syntax: digits 0-9 are digit tiles, [10]..[20] is a single tile,
- * + - * / = are operator tiles (* = ×, / = ÷). Example: "3+4=7", "[12]-[3]=9". */
+ * + - * / = are operator tiles (* = ×, / = ÷). Example: "3+4=7", "[12]-[3]=9".
+ * Dual tiles: {+-} = ± used as +, {-+} = ± used as -, {×÷} = ×÷ used as ×, {÷×} = ×÷ used as ÷ (ASCII * and / also accepted).
+ * Blank tile: ? followed by what it stands for, e.g. ?5, ?[12], ?+, ?*, ?=. Example: "3?+4=7". */
 function parseTypedMove(text){
   const tokens = [];
   const s = String(text).replace(/\s+/g,'');
@@ -404,6 +591,32 @@ function parseTypedMove(text){
       tokens.push({kind:'digit', face:String(Number(n))}); i = end+1; continue;
     }
     const opMap = {'+':'+','-':'-','*':'×','×':'×','/':'÷','÷':'÷','=':'='};
+    if(ch==='{'){
+      const end = s.indexOf('}', i);
+      if(end<0) return {error:'ขาดวงเล็บปีกกาปิด } '};
+      const inner = s.slice(i+1,end);
+      if(inner.length!==2 || !opMap[inner[0]] || !opMap[inner[1]]) return {error:'เบี้ยสองหน้าที่ต้องเขียนเช่น {+-} {-+} {*/} {/*}'};
+      const a = opMap[inner[0]], b = opMap[inner[1]];
+      let dual = null;
+      if((a==='+'&&b==='-')||(a==='-'&&b==='+')) dual='pm';
+      else if((a==='×'&&b==='÷')||(a==='÷'&&b==='×')) dual='md';
+      if(!dual) return {error:'เบี้ยสองหน้ามีแค่ ± ({+-} {-+}) และ ×÷ ({*/} {/*})'};
+      tokens.push({kind:'op', face:a, dual}); i = end+1; continue;
+    }
+    if(ch==='?'){
+      const nx = s[i+1];
+      if(nx===undefined) return {error:'หลังเครื่องหมาย ? ต้องระบุว่าเบี้ยว่างแทนอะไร'};
+      if(/\d/.test(nx)){ tokens.push({kind:'digit', face:nx, blank:true}); i += 2; continue; }
+      if(nx==='['){
+        const end = s.indexOf(']', i);
+        if(end<0) return {error:'ขาดวงเล็บปิด ] '};
+        const n = s.slice(i+2,end);
+        if(!/^\d+$/.test(n) || Number(n)<10 || Number(n)>20) return {error:'เบี้ยวงเล็บต้องเป็นเลข 10-20'};
+        tokens.push({kind:'digit', face:String(Number(n)), blank:true}); i = end+1; continue;
+      }
+      if(opMap[nx]){ tokens.push({kind:'op', face:opMap[nx], blank:true}); i += 2; continue; }
+      return {error:`เบี้ยว่างแทน "${nx}" ไม่ได้`};
+    }
     if(opMap[ch]){ tokens.push({kind:'op', face:opMap[ch]}); i++; continue; }
     return {error:`ไม่รู้จักอักษร "${ch}"`};
   }
@@ -429,8 +642,14 @@ function applyTypedMove(boardState, rackState, start, dir, text){
       if(existing.face!==want.face) return {error:`ช่อง แถว ${r+1} คอลัมน์ ${c+1} มี "${existing.face}" อยู่แล้ว ไม่ใช่ "${want.face}"`};
       continue;
     }
-    const points = want.kind==='digit' ? NUM_INFO[Number(want.face)].points : OP_INFO[want.face].points;
-    next[r][c].tile = {kind:want.kind, face:want.face, points, origin: want.kind==='digit' ? 'digit:'+want.face : 'op:'+want.face};
+    let points, origin;
+    if(want.blank){ points = 0; origin = 'blank'; }
+    else if(want.dual){ points = DUAL_INFO[want.dual].points; origin = 'dual:'+want.dual; }
+    else {
+      points = want.kind==='digit' ? NUM_INFO[Number(want.face)].points : OP_INFO[want.face].points;
+      origin = want.kind==='digit' ? 'digit:'+want.face : 'op:'+want.face;
+    }
+    next[r][c].tile = {kind:want.kind, face:want.face, points, origin};
     placements.push({r, c, kind:want.kind, face:want.face, points, origin:next[r][c].tile.origin});
   }
   return {board: next, placements};
