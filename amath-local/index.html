@@ -294,7 +294,7 @@
 <div class="wrap">
   <header>
     <span class="brand-badge">A-MATH · Best Play</span>
-    <h1>เอแม็ท — ตัวช่วยหาเบี้ยที่ดีที่สุด</h1>
+    <h1 id="titleRefresh" role="button" tabindex="0" title="รีเฟรชหน้า (เบี้ยบนกระดานและในมือยังอยู่)" style="cursor:pointer;">เอแม็ท — ตัวช่วยหาเบี้ยที่ดีที่สุด</h1>
     <p>เลือกโหมดกระดานเต็มเพื่อวางเกมทั้งกระดาน หรือโหมดบิงโกเพื่อหาการเรียงที่ใช้เบี้ยทั้งหมดในแถวเดียว เกมจะถูกเก็บไว้ในเครื่องนี้</p>
   </header>
 
@@ -774,6 +774,9 @@ function runSolve(){
 }
 
 /* ---------- wiring ---------- */
+function refreshKeepingTiles(){ saveState(); location.reload(); }
+document.getElementById('titleRefresh').onclick = refreshKeepingTiles;
+document.getElementById('titleRefresh').addEventListener('keydown', e => { if (e.key === 'Enter') refreshKeepingTiles(); });
 document.getElementById('modeFull').onclick = () => setMode('full');
 document.getElementById('modeBingo').onclick = () => setMode('bingo');
 document.querySelectorAll('#bingoN button').forEach(b => b.onclick = () => setBingoN(Number(b.textContent)));
